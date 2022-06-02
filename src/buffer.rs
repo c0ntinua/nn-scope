@@ -56,8 +56,7 @@ impl Buffer {
 			
 		
 
-	pub fn add_plot<F>(&mut self, mut f : F, x_range : (f64,f64), y_range : (f64,f64), rgb : [u32;3] )
-		where F: Fn(f64) -> f64 {
+	pub fn add_plot(&mut self, f : &Network, x_range : (f64,f64), y_range : (f64,f64), rgb : [u32;3] ){
 		let rows = self.pixl.rows;
 		let cols = self.pixl.cols;
 		let pixels_per_unit_x = cols as f64 / (x_range.1 - x_range.0);
@@ -66,7 +65,7 @@ impl Buffer {
 		let mut current_x = x_range.0;
 		for col in 0..cols {
 			current_x = col as f64 * x_unit_per_col + x_range.0;
-			let f_of_x = (f)(current_x);
+			let f_of_x = f.im_fwd(current_x);
 			if f_of_x > y_range.0 && f_of_x < y_range.1 {
 				let row = (( (f_of_x - y_range.0)/(y_range.1 - y_range.0) )*(rows as f64)).floor() as usize;
 				self.draw_pixl(row, col, rgb);

@@ -8,150 +8,150 @@ use libm::*;
 //use image::{ImageBuffer, RgbImage, GrayImage};
 //use imageproc::drawing::{draw_text_mut, text_size};
 //use rusttype::{Font, Scale};
-mod train;mod data;mod vector;mod escape;mod pixl;mod canvas;mod network;mod window;
+mod train;mod data;mod vector;mod escape;mod pixl;mod canvas;mod network;mod window;mod settings;
 use window::*;use vector::*;use train::*;use network::*;use escape::*;use canvas::*;use data::*;
+use settings::*;
 
 fn main() {
 
 	test();
 }
 
-fn test_learn() {
-
-}
-		
-	
-
-
-
-fn test_net() {
-
-}
-
-
-
-
 fn test() {
+
+	let font = loaded_font(0);
+	let x_range = (-std::f64::consts::PI,std::f64::consts::PI);
+	let y_range = (-20.0,20.0);
+	let data_y_range = (-20.0,20.0);
 	
-	let mut learning = true;
-	let pi = std::f64::consts::PI;
+	let canvas_rows = 2000;
+	let canvas_cols = 2000;
+	
 	let graph_rows = 500;
-	let graph_cols = 750;
+	let graph_cols = 1000;
+	
 	let plot_rows = 500;
 	let plot_cols = 1000;
-	let mut f = Network::classic(&[1,17,17,1]);
-	let mut g = Network::classic(&[1,35,35,1]);
-	let mut h = Network::classic(&[1,35,35,1]);
 	
-	let x_range = (-pi,pi);
-	let mut y_range = (-20.0,20.0);
+	let control_rows = 1000;
+	let control_cols = 500;
 	
-	let data_y_range = (-10.0,10.0);
-	let batch = 1000;
-	let mut data = random_regular_datapoints(10, x_range, data_y_range);
+	let graph_r = 100; 
+	let graph_c = 700;
 	
-	let mut graph_f_canvas = Canvas::new(graph_rows,graph_cols);
-	let mut graph_g_canvas = Canvas::new(graph_rows,graph_cols);
-	//let mut graph_h_canvas = Canvas::new(graph_rows,graph_cols);
+	let plot_r = 650; 
+	let plot_c = 700;
+	
+	let control_r = 100;
+	let control_c = 100;
+	
+
+	let mut current_setting = 0;
+	let mut f = Network::dense(&[1,17,17,1]);
+	let mut settings = settings_from_network(&f);
+	let mut learning = true;
+	let mut data = random_regular_datapoints( 3, x_range, y_range);
+
+	let mut graph_canvas = Canvas::new(graph_rows,graph_cols);
 	let mut plot_canvas = Canvas::new(plot_rows,plot_cols);
-
-	let mut plot_window = system_window(plot_rows, plot_cols);
-	let mut f_graph_window = system_window(graph_rows, graph_cols);
-	let mut g_graph_window = system_window(graph_rows, graph_cols);
-	//let mut h_graph_window = system_window(graph_rows, graph_cols);
+	let mut control_canvas = Canvas::new(control_rows,control_cols);
+	let mut canvas = Canvas::new(canvas_rows,canvas_cols);
+	plot_canvas.add_plot(&f, x_range, y_range, [255,0,0]);
+	//canvas.inscribe(&plot_canvas, 0,0);
+	let mut canvas_window = system_window(canvas_rows, canvas_cols);
+	control_canvas.add_settings(&settings, &font, current_setting);
+	println!("{:?}",f.act);
 	
-	plot_window.set_position(1000,0);
-	f_graph_window.set_position(0,0);
-	g_graph_window.set_position(0,600);
-	//h_graph_window.set_position(600,600);
-	plot_window.set_key_repeat_delay(0.5);
-	f_graph_window.set_key_repeat_delay(0.5);
-	g_graph_window.set_key_repeat_delay(0.5);
-	//h_graph_window.set_key_repeat_delay(0.5);
-	f.refresh_pos(&graph_f_canvas);
-	g.refresh_pos(&graph_g_canvas);
-	
-// 	let f_closure = |x| f.im_fwd(x);
-// 	let g_closure = |x| g.im_fwd(x);
-// 	let h_closure = |x| h.im_fwd(x);
-// 	
-	while plot_window.is_open() && !plot_window.is_key_down(Key::Escape) {
+	while canvas_window.is_open() && !canvas_window.is_key_down(Key::Escape) {
+		graph_canvas.clear();
 		plot_canvas.clear();
-		let f_closure = |x| f.im_fwd(x);
-		let g_closure = |x| g.im_fwd(x);
-		let h_closure = |x| h.im_fwd(x);
+		control_canvas.clear();
+		f.refresh_pos(&graph_canvas);
+		
 		plot_canvas.graphics_plot_data(&data, x_range,y_range, [255,255,255],6);
-		plot_canvas.add_plot(f_closure, x_range, y_range, [255,0,0]);
-		plot_canvas.add_plot(g_closure, x_range, y_range, [0,0,255]);
-		//plot_canvas.add_plot(h_closure, x_range, y_range, [155,155,155]);
+		graph_canvas.plot_network_weights(&f);
+    	graph_canvas.plot_network_nodes(&f,  [255,0,0], 3);
+    	graph_canvas.add_border([255,255,255]);
+    	
+		plot_canvas.add_plot(&f, x_range, y_range, [255,0,0]);
 		plot_canvas.add_border([255,255,255]);
+		control_canvas.add_settings(&settings, &font,current_setting);
 		
 		
-
-		
-		graph_f_canvas.plot_network_weights(&f);
-    	graph_f_canvas.plot_network_nodes(&f,  [255,0,0], 10);
-    	graph_f_canvas.add_border([255,255,255]);
-    	
-    	graph_g_canvas.plot_network_weights(&g);
-    	graph_g_canvas.plot_network_nodes(&g,  [0,0,255], 10);
-    	graph_g_canvas.add_border([255,255,255]);
-    	
-    	plot_window.update_with_buffer(&plot_canvas.cells, plot_cols, plot_rows).ok();
-    	f_graph_window.update_with_buffer(&graph_f_canvas.cells,graph_cols,graph_rows).ok();
-		g_graph_window.update_with_buffer(&graph_g_canvas.cells,graph_cols,graph_rows).ok();
-		//h_graph_window.update_with_buffer(&graph_h_canvas.cells,graph_cols,graph_rows).ok();
 		
 		
-		plot_window.get_keys_pressed(KeyRepeat::Yes).iter().for_each(|key|
+		
+		canvas.inscribe(&plot_canvas, plot_r,plot_c);
+		canvas.inscribe(&graph_canvas, graph_r,graph_c);
+		canvas.inscribe(&control_canvas, control_r, control_c);	
+		canvas_window.update_with_buffer(&canvas.cells, canvas_rows, canvas_cols).ok();
+		canvas_window.get_keys_pressed(KeyRepeat::Yes).iter().for_each(|key|
 			match key {
-				Key::F => {
-							f = Network::random_relu_network();
-							//f = Network::classic(&[1,7,7,7,7,7,1]);
-							f.rate= 0.001;
-						   	f.refresh_pos(&graph_f_canvas);
-						   	graph_f_canvas.clear();
+				Key::F => 
+				{
+						f = Network::dense(&[1,27,31,27,1]);
+						settings = settings_from_network(&f);
+						f.refresh_pos(&graph_canvas);			   	
 				},
-				
-				Key::G =>  {
-							g = Network::random_relu_network();
-							//g = Network::classic(&[1,13,13,13,1]);
-							g.rate= 0.001;
-						   	g.refresh_pos(&graph_g_canvas);
-							graph_g_canvas.clear();
+				Key::X => 
+				{
+						f = Network::dense(&[1,27,31,27,1]);
+						settings = settings_from_network(&f);
+						f.refresh_pos(&graph_canvas);
+						data = random_regular_datapoints( f.datapoints, x_range, data_y_range);
 				},
-				Key::H =>  {
-							//h = Network::random_relu_network();
-							h = Network::classic_act(&[1,27,27,27,1], &['i','r','r','r','i'] ,0.01);
-							data = datapoints_from_network(&h, 20, x_range);
-							y_range = y_range_from_data(&data);
-						   	//h.refresh_pos(&graph_h_canvas);
-							//graph_h_canvas.clear();
-				},
-				
+			
 				Key::L => learning = ! learning,
 				
-				Key::D => {
-							data = datapoints_from_network(&h, 20, x_range);
-							plot_canvas.clear();
-							y_range = y_range_from_data(&data);
+				Key::B => train_network_with_data(&mut f, &data),
+				
+				Key::D => 
+				{
+						data = random_regular_datapoints( f.datapoints, x_range, data_y_range);
+				},
+				Key::W => 
+				{
+						f.weight = random_vector_in(f.num_nodes*f.num_nodes,(-1.0,1.0));
+						f.bias = random_vector_in(f.num_nodes, (-0.00,0.00) );
+				}
+				Key::Down => 
+				{
+						current_setting += 1;
+						if current_setting > settings.len() - 1 {current_setting = 0;}
 				},	
-					
+				Key::Up => 
+				{
+						if current_setting >= 1 {
+							current_setting -= 1;
+						} else {
+							current_setting = settings.len()-1;
+						}
+				},
+				Key::Right => 
+				{
+						f.respond_to_increase(&mut settings[current_setting]);
+						f.refresh_pos(&graph_canvas);
+						settings = settings_from_network(&f);
+						control_canvas.add_settings(&settings, &font,current_setting);
+				},
+				Key::Left => 
+				{
+						f.respond_to_decrease(&mut settings[current_setting]);
+						f.refresh_pos(&graph_canvas);
+						settings = settings_from_network(&f);
+						control_canvas.add_settings(&settings, &font,current_setting);
+				},
+								
 				_ => (),
 			});
+		if learning { train_network_with_data(&mut f, &data);}
+			
 
-    	
-		if learning {
-			//train_network_with_closure(&mut f, h_closure, 100, x_range);
-			//train_network_with_closure(&mut g, h_closure, 100, x_range);
-			train_network_with_data(&mut f, &data, 100);
-			train_network_with_data(&mut g, &data, 100);
-			//h.fwd(random_in((-10.0,10.0)));
-			//h.rtr(random_in((-10.0,10.0)));
+	}
 
-		}		
-	}
-	}
+}
+		
+
 
 
 
