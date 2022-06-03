@@ -8,18 +8,14 @@ use libm::*;
 //use image::{ImageBuffer, RgbImage, GrayImage};
 //use imageproc::drawing::{draw_text_mut, text_size};
 //use rusttype::{Font, Scale};
-mod train;mod data;mod vector;mod escape;mod pixl;mod canvas;mod network;mod window;mod settings;
+mod train;mod data;mod vector;mod escape;mod canvas;mod network;mod window;mod settings;
 use window::*;use vector::*;use train::*;use network::*;use escape::*;use canvas::*;use data::*;
 use settings::*;
 
 fn main() {
-
-	test();
-}
-
-fn test() {
-
-	let font = loaded_font(0);
+	let font = loaded_font(1);
+	let function_plot_thickness = 2;
+	let mut data_mode = false;
 	let mut f = Network::dense(&[1,17,17,1]);
 	let x_range = (f.x_min,f.x_max);
 	let y_range = (f.y_min,f.y_max);
@@ -34,23 +30,23 @@ fn test() {
 	let plot_rows = 500;
 	let plot_cols = 1000;
 	
-	let control_rows = 1000;
-	let control_cols = 400;
+	let control_rows = 1100;
+	let control_cols = 300;
 	
 	let graph_r = 10; 
-	let graph_c = 500;
+	let graph_c = 400;
 	
 	let plot_r = 510; 
-	let plot_c = 500;
+	let plot_c = 400;
 	
-	let control_r = 100;
-	let control_c = 100;
+	let control_r = 10;
+	let control_c = 10;
 	
 
 	let mut current_setting = 0;
 	let mut f = Network::dense(&[1,17,17,1]);
 	let g = libm::sin;
-	let g = |x| 10.0*sin(2.0*x);
+	let g = |x| 8.0*sin(2.0*x);
 	let mut settings = settings_from_network(&f);
 	let mut learning = true;
 	let mut data = random_regular_datapoints( 3, x_range, y_range);
@@ -59,40 +55,39 @@ fn test() {
 	let mut plot_canvas = Canvas::new(plot_rows,plot_cols);
 	let mut control_canvas = Canvas::new(control_rows,control_cols);
 	let mut canvas = Canvas::new(canvas_rows,canvas_cols);
-	plot_canvas.add_plot(&f, x_range, y_range, [255,0,0]);
 	//canvas.inscribe(&plot_canvas, 0,0);
 	let mut canvas_window = system_window(canvas_rows, canvas_cols);
 	control_canvas.add_settings(&settings, &font, current_setting);
 	println!("{:?}",f.act);
 	
 	while canvas_window.is_open() && !canvas_window.is_key_down(Key::Escape) {
-		let x_range = (f.x_min,f.x_max);
-		let y_range = (f.y_min,f.y_max);
-		
-		graph_canvas.clear();
-		plot_canvas.clear();
-		control_canvas.clear();
+		let x_range = (f.x_min,f.x_max);let y_range = (f.y_min,f.y_max);
 		f.refresh_pos(&graph_canvas);
+		graph_canvas.clear();plot_canvas.clear();control_canvas.clear();
 		
-		plot_canvas.graphics_plot_data(&data, x_range,y_range, [255,255,255],6);
-		graph_canvas.plot_network_weights(&f);
-    	graph_canvas.plot_network_nodes(&f,  [255,0,0], 3);
-    	//graph_canvas.add_border([255,255,255]);
-    	plot_canvas.add_hor_grid(x_range, y_range, [255,255,255]);
-    	plot_canvas.add_ver_grid(x_range, y_range, [255,255,255]);
-
-		plot_canvas.graphics_plot_function(g, x_range, y_range, [0,0,255]);
-		plot_canvas.graphics_plot_network(&f, x_range, y_range, [255,0,0]);
-		//plot_canvas.add_border([55,55,55]);
+		let f_clo = |x| f.im_fwd(x);
+		
+		if data_mode {
+			plot_canvas.add_data(&data, x_range,y_range, [0,0,255],6);
+		} else {
+			plot_canvas.add_closure_t(g, x_range, y_range, [0,0,255],function_plot_thickness);
+		}
+			
+		graph_canvas.add_network_weights(&f);
+    	graph_canvas.add_network_nodes(&f,  [255,0,0], 6);
+    	graph_canvas.load_cells_from_image();
+    	
+    	plot_canvas.add_grid(x_range, y_range, [255,255,255]);
+		plot_canvas.add_closure_t(f_clo, x_range, y_range, [255,0,0],function_plot_thickness);
+		plot_canvas.load_cells_from_image();
+		
 		control_canvas.add_settings(&settings, &font,current_setting);
-		
-		
-		
-		
+		control_canvas.load_cells_from_image();
 		
 		canvas.inscribe(&plot_canvas, plot_r,plot_c);
 		canvas.inscribe(&graph_canvas, graph_r,graph_c);
 		canvas.inscribe(&control_canvas, control_r, control_c);	
+		
 		canvas_window.update_with_buffer(&canvas.cells, canvas_rows, canvas_cols).ok();
 		canvas_window.get_keys_pressed(KeyRepeat::Yes).iter().for_each(|key|
 			match key {
@@ -104,7 +99,7 @@ fn test() {
 				},
 				Key::X => 
 				{
-						f.makeover(&[1,27,31,27,1]);
+						f.makeover(&[1,11,9,13,9,11,1]);
 						settings = settings_from_network(&f);
 						f.refresh_pos(&graph_canvas);
 						data = random_regular_datapoints( f.datapoints, x_range, data_y_range);
@@ -150,19 +145,23 @@ fn test() {
 						settings = settings_from_network(&f);
 						control_canvas.add_settings(&settings, &font,current_setting);
 				},
+				Key::M => data_mode = !data_mode,
 								
 				_ => (),
 			});
-		if learning { //train_network_with_data(&mut f, &data);
-						train_network_with_function(&mut f, g, x_range);
+		match learning { 
+			true => match data_mode {
+				true => train_network_with_data(&mut f, &data),
+				false => train_network_with_function(&mut f, g, x_range),
+			},
+			false => (),
 		}
-			
 
 	}
 
-}
-		
 
+
+}
 
 
 

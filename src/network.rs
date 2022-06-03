@@ -92,8 +92,8 @@ impl Network {
 				Relu => {if self.value[t] > 0.0 {self.memory[t] = 1.0;} else {self.value[t] = 0.0; self.memory[t] = 0.0;}},
 				Tanh => {self.value[t] = tanh(self.value[t]);self.memory[t] = 1.0 -self.value[t]*self.value[t];},
 				Sin => {self.value[t] = sin(self.value[t]);self.memory[t] = cos(self.value[t]);},
-				// 'p' => {let p = ((t - self.layer_start[t_layer])%3 + 1) as f64; 
-// 						self.memory[t] = p *self.value[t].powf(p-1.0);self.value[t] = self.value[t].powf(p);}, 
+				Poly => {let p = ((t - self.layer_start[t_layer])%3 + 1) as f64; 
+ 						self.memory[t] = p *self.value[t].powf(p-1.0);self.value[t] = self.value[t].powf(p);}, 
 				_ => {print!("no act for node {}",t);},
 			}
 		}
@@ -116,7 +116,7 @@ impl Network {
 				Relu => {if z[t] < 0.0 {z[t] = 0.0;}}, 
 				Tanh => {z[t] = tanh(z[t]);},
 				Sin => {z[t] = sin(z[t]);},
-// 				'p' => {let p = ((t - self.layer_start[t_layer])%3 + 1) as f64;z[t] = z[t].powf(p);}
+ 				Poly => {let p = ((t - self.layer_start[t_layer])%3 + 1) as f64;z[t] = z[t].powf(p);}
 				_ => {print!("no act for node {}",t);},
 			}
 		}
@@ -139,9 +139,7 @@ impl Network {
 			let s_layer = self.layer_list[s];
 			self.bias[s] -= self.rate[s_layer]*self.delta[s]*self.memory[s];
 			for t in self.layer_start[s_layer+1]..=self.layer_stop[s_layer+1] {
-				//println!("add {:.20} to weight to {:2} from {:2} ", self.rate*self.memory[s]*self.delta[s]*self.value[t], t,s);
 				self.weight[t*N + s] -= self.rate[s_layer]*self.memory[s]*self.delta[s]*self.value[t];
-				//println!("new weight = {:.6} ",self.weight[t*N + s] );
 			}	
 		}
 	}
@@ -182,7 +180,7 @@ impl Network {
     	self.pos_x = vec![0.0;self.layer_list.len()];
     	self.pos_y = vec![0.0;self.layer_list.len()];
     	let num_layers = self.nodes_in_layer.len();
-    	let dx = width/((num_layers + 2 ) as f32);
+    	let dx = width/((num_layers + 2) as f32);
     	let mut counter = 0;
     	for layer in 0..num_layers {
     		let dy = if self.nodes_in_layer[layer] == 1 {0.0} else { height/( self.nodes_in_layer[layer] as f32 - 1.0)};
@@ -254,7 +252,8 @@ impl Network {
 		self.value = vec![0.0;self.num_nodes];
 		self.memory = vec![0.0;self.num_nodes];
 		self.delta = vec![0.0;self.num_nodes];
-		//self.rate = vec![0.0001;self.num_layers];
+		let r = self.rate[0];
+		self.rate = vec![r;self.num_layers];
 		//self.weight_limit = 5.0;
 	}
 	
@@ -262,9 +261,9 @@ impl Network {
 	pub fn respond_to_increase(&mut self, setting : &mut Setting) {
 		match setting {
 				&mut Setting::NumLayers(n) => {
-					if n < 9 {
+					if n < 17 {
 						*setting = NumLayers(n+1);
-						let mut next = vec![13;n+1];
+						let mut next = vec![9;n+1];
 						next[0] = 1;
 						next[n] = 1;
 						self.makeover(&next);
@@ -300,7 +299,8 @@ impl Network {
 					let next = match f {
 						Identity => Relu,
 						Relu => Tanh,
-						Tanh => Sin,
+						Tanh =>Poly,
+						Poly => Sin,
 						Sin => Identity,
 					};
 					*setting = ActivationOfLayer{act : next , layer : l};
@@ -329,20 +329,13 @@ impl Network {
 				_ => (),
 				}
 												
-// 												
-// 				NodesInLayer{num_nodes : n, layer : l} =>    format!("nodes{:1}    =  {:02}",l,n),
-// 				ActivationOfLayer{ act : f ,layer : l }=>    format!("funct{:1}    =  {}",l,f.abbr()),
-// 				RateOfLayer{ rate: r, layer : l} =>          format!("rate{:1}     =  {:.4}",l,r),
-// 				WeightLimit(w) => 						     format!("wghtlmt   =  {:.1}",w), 
-// 				BatchSize(n) =>                              format!("batch     =  {:03}",n),
-// 				_ => format!("not implemented yet"),
 	}
 	pub fn respond_to_decrease(&mut self, setting : &mut Setting) {
 		match setting {
 				&mut Setting::NumLayers(n) => {
 					if n > 3 {
 						*setting = NumLayers(n-1);
-						self.nodes_in_layer = vec![7;n-1];
+						self.nodes_in_layer = vec![11;n-1];
 						self.nodes_in_layer[0] = 1;
 						self.nodes_in_layer[n-2] = 1;
 						self.num_layers = self.nodes_in_layer.len(); 
@@ -397,7 +390,8 @@ impl Network {
 						Identity => Sin,
 						Relu => Identity,
 						Tanh => Relu,
-						Sin => Tanh,
+						Sin => Poly,
+						Poly => Tanh,
 					};
 					*setting = ActivationOfLayer{act : next , layer : l};
 					self.act[l] = next;
