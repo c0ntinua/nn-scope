@@ -27,10 +27,12 @@ impl Canvas {
 				image: RgbImage::new(cols as u32,rows as u32),
 			}
 	}
+	
 	pub fn clear(&mut self) {
 		self.cells = vec![0u32;self.rows*self.cols];
 		self.image = RgbImage::new(self.cols as u32,self.rows as u32);
 	}
+	
 	pub fn inscribe(&mut self, source : &Canvas, r : usize, c : usize) {
 		let source_cols = source.cols;
 		let self_cols = self.cols;
@@ -71,6 +73,41 @@ impl Canvas {
 		}
 	}
 	
+	pub fn add_hor_grid(&mut self, x_range : (f64,f64), y_range : (f64,f64),rgb : [u32;3]) {
+		let rows = self.pixl.rows;
+		let cols = self.pixl.cols;
+		let height = self.image.height();
+		let width = self.image.width();
+		let pixels_per_unit_x = cols as f64 / (x_range.1 - x_range.0);
+		let x_unit_per_col = (x_range.1 - x_range.0)/(cols as f64);
+		let pixels_per_unit_y = rows as f64 / (y_range.1 - y_range.0);
+		let mut current_val = y_range.0.trunc();
+		while  current_val < y_range.1 {
+			let row = ((current_val -  y_range.0)/(y_range.1 - y_range.0)) as f32;
+			let row = row * height as f32;
+			let this_rgb = if current_val == 0.0 {[150,150,150]} else {[50,50,50]};
+			draw_line_segment_mut(&mut self.image, 
+				(0.0, row), ((width - 1) as f32, row), image::Rgb(this_rgb));
+			current_val += 1.0;
+		}
+		self.cells =  Canvas::as_u32_buffer(&self.image);
+	}
+	pub fn add_ver_grid(&mut self, x_range : (f64,f64), y_range : (f64,f64),rgb : [u32;3]) {
+		let height = self.image.height();
+		let width = self.image.width();
+		let mut current_val = x_range.0.trunc();
+		while  current_val < x_range.1 {
+			let col = ((current_val -  x_range.0)/(x_range.1 - x_range.0)) as f32;
+			let col = col * width as f32;
+			let this_rgb = if current_val == 0.0 {[150,150,150]} else {[50,50,50]};
+			draw_line_segment_mut(&mut self.image, 
+				(col, 0.0), (col , (height - 1) as f32), image::Rgb(this_rgb));
+			current_val += 1.0;
+		}
+		self.cells =  Canvas::as_u32_buffer(&self.image);
+	}
+	
+
 	pub fn add_plot(&mut self, f : &Network, x_range : (f64,f64), y_range : (f64,f64), rgb : [u32;3] ) {
 		let rows = self.pixl.rows;
 		let cols = self.pixl.cols;
@@ -89,6 +126,71 @@ impl Canvas {
 				self.draw_pixl(row + 1, col + 1, rgb);
 			} 
 		}		
+	}
+	
+	pub fn add_plot_function(&mut self, g : fn(f64) -> f64, x_range : (f64,f64), y_range : (f64,f64), rgb : [u32;3] ) {
+		let rows = self.pixl.rows;
+		let cols = self.pixl.cols;
+		
+		let pixels_per_unit_x = cols as f64 / (x_range.1 - x_range.0);
+		let x_unit_per_col = (x_range.1 - x_range.0)/(cols as f64);
+		let pixels_per_unit_y = rows as f64 / (y_range.1 - y_range.0);
+		let mut current_x = x_range.0;
+		for col in 0..cols {
+			current_x = col as f64 * x_unit_per_col + x_range.0;
+			let f_of_x = g(current_x);
+			if f_of_x > y_range.0 && f_of_x < y_range.1 {
+				let row = (( (f_of_x - y_range.0)/(y_range.1 - y_range.0) )*(rows as f64)).floor() as usize;
+				self.draw_pixl(row, col, rgb);
+				self.draw_pixl(row + 1, col, rgb);
+				self.draw_pixl(row , col + 1, rgb);
+				self.draw_pixl(row + 1, col + 1, rgb);
+			} 
+		}		
+	}
+	pub fn graphics_plot_function(&mut self, g : fn(f64) -> f64, x_range : (f64,f64), y_range : (f64,f64), rgb : [u8;3] ) {
+		let rows = self.pixl.rows;
+		let cols = self.pixl.cols;
+		
+		let pixels_per_unit_x = cols as f64 / (x_range.1 - x_range.0);
+		let x_unit_per_col = (x_range.1 - x_range.0)/(cols as f64);
+		let pixels_per_unit_y = rows as f64 / (y_range.1 - y_range.0);
+		let mut current_x = x_range.0;
+		for col in 0..cols {
+			current_x = col as f64 * x_unit_per_col + x_range.0;
+			let f_of_x = g(current_x);
+			if f_of_x > y_range.0 && f_of_x < y_range.1 {
+				let row = (( (f_of_x - y_range.0)/(y_range.1 - y_range.0) )*(rows as f64)).floor() as usize;
+				//self.draw_pixl(row, col, rgb);
+				//self.draw_pixl(row + 1, col, rgb);
+				//self.draw_pixl(row , col + 1, rgb);
+				//self.draw_pixl(row + 1, col + 1, rgb);
+				self.draw_rgb_circle(row , col , rgb, 2); 
+			} 
+		}
+		self.cells =  Canvas::as_u32_buffer(&self.image);		
+	}
+	pub fn graphics_plot_network(&mut self, g : &Network, x_range : (f64,f64), y_range : (f64,f64), rgb : [u8;3] ) {
+		let rows = self.pixl.rows;
+		let cols = self.pixl.cols;
+		
+		let pixels_per_unit_x = cols as f64 / (x_range.1 - x_range.0);
+		let x_unit_per_col = (x_range.1 - x_range.0)/(cols as f64);
+		let pixels_per_unit_y = rows as f64 / (y_range.1 - y_range.0);
+		let mut current_x = x_range.0;
+		for col in 0..cols {
+			current_x = col as f64 * x_unit_per_col + x_range.0;
+			let f_of_x = g.im_fwd(current_x);
+			if f_of_x > y_range.0 && f_of_x < y_range.1 {
+				let row = (( (f_of_x - y_range.0)/(y_range.1 - y_range.0) )*(rows as f64)).floor() as usize;
+				//self.draw_pixl(row, col, rgb);
+				//self.draw_pixl(row + 1, col, rgb);
+				//self.draw_pixl(row , col + 1, rgb);
+				//self.draw_pixl(row + 1, col + 1, rgb);
+				self.draw_rgb_circle(row , col , rgb, 2); 
+			} 
+		}
+		self.cells =  Canvas::as_u32_buffer(&self.image);		
 	}
 	
 	pub fn graphics_plot_data( &mut self, data : &[(f64,f64)], x_range : (f64,f64), y_range : (f64,f64), 
@@ -110,6 +212,7 @@ impl Canvas {
 		}
 		self.cells =  Canvas::as_u32_buffer(&self.image);
 	}
+	
 	pub fn draw_rgb_circle(&mut self, r : usize, c : usize,  rgb : [u8;3], radius : i32) {
 		let buffer_cols = self.cols;
 		let pixl_height = self.pixl.height;
@@ -139,6 +242,7 @@ impl Canvas {
 		}
 		self.cells = Canvas::as_u32_buffer(&self.image);	
 	}
+	
 	pub fn as_u32_buffer(im : &RgbImage) -> Vec<u32> {
 		let rows = im.height() as usize; 
 		let cols = im.width() as usize; 
@@ -155,6 +259,7 @@ impl Canvas {
 		}	
 		buffer
 	}
+	
 	pub fn add_settings(&mut self, settings : &[Setting], font : &Font, current_setting :  usize) {
 		let size_float = 30.0; 
 		let size_int = 30;
@@ -163,14 +268,18 @@ impl Canvas {
 		let mut display_string = vec!["not_implemented_yet".to_string();settings.len()];
 		for i in 0..settings.len() {
 			display_string[i] = match settings[i] {
-				Rate(r) =>                                   format!("rate      =  {:.4}",r),
+				Rate(r) =>                                   format!("rate      =  {:.6}",r),
 				NumLayers(n) =>                              format!("layers    =  {:02}",n),
 				NodesInLayer{num_nodes : n, layer : l} =>    format!("nodes{:1}    =  {:02}",l,n),
 				ActivationOfLayer{ act : f ,layer : l }=>    format!("funct{:1}    =  {}",l,f.abbr()),
-				RateOfLayer{ rate: r, layer : l} =>          format!("rate{:1}     =  {:.4}",l,r),
+				RateOfLayer{ rate: r, layer : l} =>          format!("rate{:1}     =  {:.5}",l,r),
 				WeightLimit(w) => 						     format!("wghtlmt   =  {:.1}",w), 
 				BatchSize(n) =>                              format!("batch     =  {:03}",n),
 				Datapoints(n) =>                             format!("data      =  {:03}",n),
+				XMin(m) => 									 format!("xmin      =  {:+05.1}",m),
+				XMax(m) => 									 format!("xmax      =  {:+05.1}",m),
+				YMin(m) => 									 format!("ymin      =  {:+05.1}",m),
+				YMax(m) => 									 format!("ymax      =  {:+05.1}",m),
 				_ => format!("not implemented yet"),
 			}
 		}
@@ -178,46 +287,8 @@ impl Canvas {
 			let x = 10;
 			let y = (i*size_int) as i32;
 			if i == current_setting { rgb = [255u8,255u8,0u8];} else { rgb =[255u8,255u8,255u8];}
-
 			draw_text_mut(& mut self.image, image::Rgb(rgb), x, y, scale, font,  &display_string[i]);
 		}
 		self.cells = Canvas::as_u32_buffer(&self.image);
 	}
-
-			
-	
-	
-	
-			
-// 	pub fn update_diagnostics(& mut self) {
-// 		let size_float = 40.0; 
-// 		let size_int = 40;
-// 		let scale = Scale { x: size_float, y: size_float};
-// 		let rect = Rect::at(0, 0).of_size(1000, 1000);
-// 		let mut rgb = [0u8;3];
-// 		draw_filled_rect_mut(&mut self.control_image, rect, image::Rgb([0,0,0]));
-// 		let mut diagnostic = vec!["not implemented yet".to_string();self.filter.len() + 8];
-// 		for i in 0..self.filter.len() {
-// 			diagnostic[i] = format!("f[{}] = {},{} -> {}",
-// 				i, self.filter[i].rows,self.filter[i].cols, self.filter_target[i]);
-// 		}
-// 		let option = self.pixel_options[self.current_pixel_option];
-// 		diagnostic[self.filter.len()] = format!("pixels = {},{}", option.0,option.1);
-// 		let option = self.delay_options[self.current_delay_option];
-// 		diagnostic[self.filter.len()+1] = format!("frames between updates = {}", option);
-// 		diagnostic[self.filter.len()+2] = format!("binarized = {}", self.binarized);
-// 		diagnostic[self.filter.len()+3] = format!("monochrome = {}", self.monochrome);
-// 		diagnostic[self.filter.len()+4] = format!("paused = {}", self.paused);
-// 		diagnostic[self.filter.len()+5] = format!("max filters = {}", self.max_num_filters);
-// 		diagnostic[self.filter.len()+6] = format!("help mode = {}", self.help_mode);
-// 		diagnostic[self.filter.len()+7] = format!("speed = {}", self.speed);
-// 		let mut rgb = [255u8;3];
-// 		for i in 0..diagnostic.len() {
-// 			let x = 10;
-// 			let y = (i*size_int) as i32;
-// 			draw_text_mut(& mut self.control_image, image::Rgb(rgb), x, y, scale, &self.font,  &diagnostic[i]);
-// 		}
-// 		
-// 		self.control_buffer = Fflo::as_u32buffer(&self.control_image)	
-// 	}
 }

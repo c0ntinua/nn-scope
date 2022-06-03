@@ -33,3 +33,12 @@ pub fn train_network_with_closure<F>(f : &mut Network, g : F , x_range : (f64, f
 	}
 	f.clean();
 }
+pub fn train_network_with_function(f : &mut Network, g : fn(f64)->f64, x_range : (f64, f64)) {
+	for i in 0..f.batch_size {
+		let x = x_range.0 + rand::random::<f64>() *( x_range.1 - x_range.0);
+		let guess = f.fwd(x);
+		let target = g(x);
+		f.rtr(guess -target);
+	}
+	f.clean();
+}

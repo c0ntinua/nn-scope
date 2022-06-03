@@ -36,6 +36,10 @@ pub enum Setting {
 	RateOfLayer { rate : f64, layer : usize},
 	Rate(f64),
 	Datapoints(usize),
+	XMin(f64),
+	XMax(f64),
+	YMin(f64),
+	YMax(f64),
 }
 
 
@@ -71,6 +75,10 @@ pub fn settings_from_network(network : &Network) -> Vec<Setting> {
 	settings.push(Setting::WeightLimit(network.weight_limit));
 	settings.push(Setting::BatchSize(network.batch_size));
 	settings.push(Setting::Datapoints(network.datapoints));
+	settings.push(Setting::XMin(network.x_min));
+	settings.push(Setting::XMax(network.x_max));
+	settings.push(Setting::YMin(network.y_min));
+	settings.push(Setting::YMax(network.y_max));
 	settings
 }
 

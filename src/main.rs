@@ -20,9 +20,10 @@ fn main() {
 fn test() {
 
 	let font = loaded_font(0);
-	let x_range = (-std::f64::consts::PI,std::f64::consts::PI);
-	let y_range = (-20.0,20.0);
-	let data_y_range = (-20.0,20.0);
+	let mut f = Network::dense(&[1,17,17,1]);
+	let x_range = (f.x_min,f.x_max);
+	let y_range = (f.y_min,f.y_max);
+	let data_y_range = (-10.0,10.0);
 	
 	let canvas_rows = 2000;
 	let canvas_cols = 2000;
@@ -34,13 +35,13 @@ fn test() {
 	let plot_cols = 1000;
 	
 	let control_rows = 1000;
-	let control_cols = 500;
+	let control_cols = 400;
 	
-	let graph_r = 100; 
-	let graph_c = 700;
+	let graph_r = 10; 
+	let graph_c = 500;
 	
-	let plot_r = 650; 
-	let plot_c = 700;
+	let plot_r = 510; 
+	let plot_c = 500;
 	
 	let control_r = 100;
 	let control_c = 100;
@@ -48,6 +49,8 @@ fn test() {
 
 	let mut current_setting = 0;
 	let mut f = Network::dense(&[1,17,17,1]);
+	let g = libm::sin;
+	let g = |x| 10.0*sin(2.0*x);
 	let mut settings = settings_from_network(&f);
 	let mut learning = true;
 	let mut data = random_regular_datapoints( 3, x_range, y_range);
@@ -63,6 +66,9 @@ fn test() {
 	println!("{:?}",f.act);
 	
 	while canvas_window.is_open() && !canvas_window.is_key_down(Key::Escape) {
+		let x_range = (f.x_min,f.x_max);
+		let y_range = (f.y_min,f.y_max);
+		
 		graph_canvas.clear();
 		plot_canvas.clear();
 		control_canvas.clear();
@@ -71,10 +77,13 @@ fn test() {
 		plot_canvas.graphics_plot_data(&data, x_range,y_range, [255,255,255],6);
 		graph_canvas.plot_network_weights(&f);
     	graph_canvas.plot_network_nodes(&f,  [255,0,0], 3);
-    	graph_canvas.add_border([255,255,255]);
-    	
-		plot_canvas.add_plot(&f, x_range, y_range, [255,0,0]);
-		plot_canvas.add_border([255,255,255]);
+    	//graph_canvas.add_border([255,255,255]);
+    	plot_canvas.add_hor_grid(x_range, y_range, [255,255,255]);
+    	plot_canvas.add_ver_grid(x_range, y_range, [255,255,255]);
+
+		plot_canvas.graphics_plot_function(g, x_range, y_range, [0,0,255]);
+		plot_canvas.graphics_plot_network(&f, x_range, y_range, [255,0,0]);
+		//plot_canvas.add_border([55,55,55]);
 		control_canvas.add_settings(&settings, &font,current_setting);
 		
 		
@@ -89,13 +98,13 @@ fn test() {
 			match key {
 				Key::F => 
 				{
-						f = Network::dense(&[1,27,31,27,1]);
+						f.makeover(&[1,27,31,27,1]);
 						settings = settings_from_network(&f);
 						f.refresh_pos(&graph_canvas);			   	
 				},
 				Key::X => 
 				{
-						f = Network::dense(&[1,27,31,27,1]);
+						f.makeover(&[1,27,31,27,1]);
 						settings = settings_from_network(&f);
 						f.refresh_pos(&graph_canvas);
 						data = random_regular_datapoints( f.datapoints, x_range, data_y_range);
@@ -144,7 +153,9 @@ fn test() {
 								
 				_ => (),
 			});
-		if learning { train_network_with_data(&mut f, &data);}
+		if learning { //train_network_with_data(&mut f, &data);
+						train_network_with_function(&mut f, g, x_range);
+		}
 			
 
 	}
