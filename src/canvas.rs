@@ -117,7 +117,7 @@ impl Canvas {
 
 	}
 	pub fn draw_thick_line(image : &mut RgbImage, start : (f32,f32), stop : (f32,f32), thickness : usize, rgb : [u8;3]) {
-		let piece = 0.5;
+		let piece = 1.0;
 		for i in 0..thickness {
 			let mod_start = (start.0 + (i as f32)*piece, start.1 + (i as f32)*piece);
 			let mod_stop = (stop.0 + (i as f32)*piece, stop.1 + (i as f32)*piece);
@@ -215,4 +215,12 @@ impl Canvas {
 			draw_text_mut(& mut self.image, image::Rgb(rgb), x, y, scale, font,  &display_string[i]);
 		}
 	}
+	pub fn add_error(&mut self, error : f64, font : &Font, row : i32, col : i32, rgb : [u8;3]) {
+		let size_float = 40.0; 
+		let scale = Scale { x: size_float, y: size_float};
+		let display_string = format!("{:.10}",error);
+		draw_text_mut(& mut self.image, image::Rgb(rgb), col, row, scale, font,  &display_string);
+	}
+		
+	
 }

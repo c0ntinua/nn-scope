@@ -13,6 +13,7 @@ use window::*;use vector::*;use train::*;use network::*;use escape::*;use canvas
 use settings::*;
 
 fn main() {
+	let mut display_error = 0.0;
 	let font = loaded_font(1);
 	let function_plot_thickness = 2;
 	let mut data_mode = false;
@@ -25,7 +26,7 @@ fn main() {
 	let canvas_cols = 2000;
 	
 	let graph_rows = 500;
-	let graph_cols = 1000;
+	let graph_cols = 1300;
 	
 	let plot_rows = 500;
 	let plot_cols = 1000;
@@ -34,7 +35,7 @@ fn main() {
 	let control_cols = 300;
 	
 	let graph_r = 10; 
-	let graph_c = 400;
+	let graph_c = 300;
 	
 	let plot_r = 510; 
 	let plot_c = 400;
@@ -44,7 +45,7 @@ fn main() {
 	
 
 	let mut current_setting = 0;
-	let mut f = Network::dense(&[1,17,17,1]);
+	let mut f = Network::dense(&[1,17,17,17,17,17,1]);
 	let g = libm::sin;
 	let g = |x| 8.0*sin(2.0*x);
 	let mut settings = settings_from_network(&f);
@@ -68,7 +69,7 @@ fn main() {
 		let f_clo = |x| f.im_fwd(x);
 		
 		if data_mode {
-			plot_canvas.add_data(&data, x_range,y_range, [0,0,255],6);
+			plot_canvas.add_data(&data, x_range,y_range, [255,255,0],8);
 		} else {
 			plot_canvas.add_closure_t(g, x_range, y_range, [0,0,255],function_plot_thickness);
 		}
@@ -78,7 +79,9 @@ fn main() {
     	graph_canvas.load_cells_from_image();
     	
     	plot_canvas.add_grid(x_range, y_range, [255,255,255]);
+		plot_canvas.add_error(display_error, &font, 0,0, [155,155,155]);
 		plot_canvas.add_closure_t(f_clo, x_range, y_range, [255,0,0],function_plot_thickness);
+		
 		plot_canvas.load_cells_from_image();
 		
 		control_canvas.add_settings(&settings, &font,current_setting);
@@ -150,18 +153,19 @@ fn main() {
 				_ => (),
 			});
 		match learning { 
-			true => match data_mode {
-				true => train_network_with_data(&mut f, &data),
-				false => train_network_with_function(&mut f, g, x_range),
-			},
+			true => for _ in 0..f.batch_size {
+						display_error = match data_mode {
+							true => train_network_with_data1(&mut f, &data),
+							false => train_network_with_function1(&mut f, g, x_range),
+						}
+					},
 			false => (),
 		}
-
 	}
-
-
-
 }
+
+
+
 
 
 

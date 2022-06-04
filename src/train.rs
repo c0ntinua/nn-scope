@@ -22,6 +22,16 @@ pub fn train_network_with_data(f : &mut Network, data : &[(f64,f64)]) {
 		}
 	}
 }
+pub fn train_network_with_data1(f : &mut Network, data : &[(f64,f64)]) -> f64 {
+	let mut abs_error =vec![];
+	for datum in data.iter() {
+		let guess = f.fwd(datum.0);
+		let error = guess - datum.1;
+		f.rtr(error);
+		abs_error.push(error.abs());
+	}
+	abs_error.into_iter().fold(0.0, |sum, next| sum + next )/(data.len() as f64)
+}
 
 pub fn train_network_with_closure<F>(f : &mut Network, g : F , x_range : (f64, f64)) 
 	where F : Fn(f64) -> f64 {
@@ -33,12 +43,15 @@ pub fn train_network_with_closure<F>(f : &mut Network, g : F , x_range : (f64, f
 	}
 	f.clean();
 }
-pub fn train_network_with_function(f : &mut Network, g : fn(f64)->f64, x_range : (f64, f64)) {
-	for i in 0..f.batch_size {
+pub fn train_network_with_function1(f : &mut Network, g : fn(f64)->f64, x_range : (f64, f64)) -> f64 {
+	let mut abs_error =vec![0.0;f.batch_size];
+	for _ in 0..f.datapoints {
 		let x = x_range.0 + rand::random::<f64>() *( x_range.1 - x_range.0);
 		let guess = f.fwd(x);
 		let target = g(x);
-		f.rtr(guess -target);
+		let error = guess - target;
+		f.rtr(error);
+		abs_error.push(error.abs());
 	}
-	f.clean();
+	abs_error.into_iter().fold(0.0, |sum, next| sum + next )/(f.batch_size as f64)
 }
