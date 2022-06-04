@@ -47,13 +47,13 @@ fn main() {
 		let f_clo = |x| f.im_fwd(x);
 		
 		if settings.data_mode {
-			plot_canvas.add_data(&data, x_range,y_range, [255,255,0],8);
+			plot_canvas.add_data(&data, x_range,y_range, [255,255,0],5);
 		} else {
 			plot_canvas.add_closure(g, x_range, y_range, [0,0,255], function_plot_thickness);
 		}
 			
 		graph_canvas.add_network_weights(&f, &positions, settings.weight_limit);
-    	graph_canvas.add_network_nodes(&positions,  [255,0,0], 6);
+    	graph_canvas.add_network_nodes(&positions,  [255,0,0], 3);
     	graph_canvas.load_cells_from_image();
     	
     	plot_canvas.add_grid(x_range, y_range, [255,255,255]);
@@ -64,9 +64,10 @@ fn main() {
 		control_canvas.add_settings(&display_settings, &font, settings.current_setting);
 		control_canvas.load_cells_from_image();
 		
-		canvas.inscribe(&plot_canvas, settings.plot_row,settings.plot_col);
+		
 		canvas.inscribe(&graph_canvas, settings.graph_row,settings.graph_col);
-		canvas.inscribe(&control_canvas, settings.control_row, settings.control_col);	
+		canvas.inscribe(&control_canvas, settings.control_row, settings.control_col);
+		canvas.inscribe(&plot_canvas, settings.plot_row,settings.plot_col);	
 		
 		canvas_window.update_with_buffer(&canvas.cells, settings.canvas_rows, settings.canvas_cols).ok();
 		canvas_window.get_keys_pressed(KeyRepeat::Yes).iter().for_each(|key|

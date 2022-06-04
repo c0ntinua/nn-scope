@@ -1,11 +1,10 @@
 
 use crate::network::*;
-use image::{RgbImage,ImageBuffer, Pixel};
+use image::{RgbImage, Pixel};
 use rusttype::{Font, Scale};
 use imageproc::drawing::*;
 use rand::random;
 use crate::settings::*;
-use crate::settings::Activation::*;
 use crate::settings::DisplaySetting::*;
 
 pub struct Canvas {
@@ -97,7 +96,7 @@ impl Canvas {
 
 	}
 	pub fn draw_thick_line(image : &mut RgbImage, start : (f32,f32), stop : (f32,f32), thickness : usize, rgb : [u8;3]) {
-		let piece = 1.0;
+		let piece = 0.25;
 		for i in 0..thickness {
 			let mod_start = (start.0 + (i as f32)*piece, start.1 + (i as f32)*piece);
 			let mod_stop = (stop.0 + (i as f32)*piece, stop.1 + (i as f32)*piece);
@@ -131,8 +130,11 @@ impl Canvas {
 			let s_layer = network.layer_list[s];
 			for t in network.layer_start[s_layer+1]..=network.layer_stop[s_layer+1] {
 				let hue = ((network.weight[t*N+s].abs()/weight_limit)*255.0).trunc() as u8;
+				//let hue = if hue > 128 { hue} else {0};
+				let hue = if hue < 128 {0} else {2*(hue-128) };
 				let rgb = [hue,hue,hue];
-				let thickness = (hue / 64) as usize;
+				//let thickness = (hue / 64) as usize;
+				let thickness = 1;
 				Canvas::draw_thick_line(&mut self.image, pos[s] , 
 					pos[t], thickness, rgb); 
 			}
@@ -172,22 +174,22 @@ impl Canvas {
 		let mut display_string = vec!["not_implemented_yet".to_string();settings.len()];
 		for i in 0..settings.len() {
 			display_string[i] = match settings[i] {
-				Rate(r) =>                                   format!("rate     =  {:.6}",r),
-				NumLayers(n) =>                              format!("layers   =  {:02}",n),
-				NodesInLayer{num_nodes : n, layer : l} =>    format!("lay{:2}    =  {:02}",l,n),
-				ActivationOfLayer{ act : f ,layer : l }=>    format!("fun{:2}    =  {}",l,f.abbr()),
-				RateOfLayer{ rate: r, layer : l} =>          format!("rate{:1}      =  {:.5}",l,r),
-				WeightLimit(w) => 						     format!("wgtlmt   =  {:.1}",w), 
-				BatchSize(n) =>                              format!("btch     =  {:03}",n),
-				Datapoints(n) =>                             format!("data     =  {:03}",n),
-				XMin(m) => 									 format!("fxmin    =  {:+05.1}",m),
-				XMax(m) => 									 format!("fxmax    =  {:+05.1}",m),
-				YMin(m) => 									 format!("fymin    =  {:+05.1}",m),
-				YMax(m) => 									 format!("fymax    =  {:+05.1}",m),
-				DataXMin(m) => 							     format!("dxmin    =  {:+05.1}",m),
-				DataXMax(m) => 							     format!("dxmax    =  {:+05.1}",m),
-				DataYMin(m) => 							     format!("dymin    =  {:+05.1}",m),
-				DataYMax(m) => 							     format!("dymax    =  {:+05.1}",m),
+				Rate(r) =>                                   format!("rate   =  {:.6}",r),
+				NumLayers(n) =>                              format!("layers =  {:02}",n),
+				NodesInLayer{num_nodes : n, layer : l} =>    format!("lay{:2}  =  {:02}",l,n),
+				ActivationOfLayer{ act : f ,layer : l }=>    format!("fun{:2}  =  {}",l,f.abbr()),
+				RateOfLayer{ rate: r, layer : l} =>          format!("rate{:1}    =  {:.5}",l,r),
+				WeightLimit(w) => 						     format!("wgtlmt =  {:.1}",w), 
+				BatchSize(n) =>                              format!("btch   =  {:03}",n),
+				Datapoints(n) =>                             format!("data   =  {:03}",n),
+				XMin(m) => 									 format!("fxmin  =  {:+05.1}",m),
+				XMax(m) => 									 format!("fxmax  =  {:+05.1}",m),
+				YMin(m) => 									 format!("fymin  =  {:+05.1}",m),
+				YMax(m) => 									 format!("fymax  =  {:+05.1}",m),
+				DataXMin(m) => 							     format!("dxmin  =  {:+05.1}",m),
+				DataXMax(m) => 							     format!("dxmax  =  {:+05.1}",m),
+				DataYMin(m) => 							     format!("dymin  =  {:+05.1}",m),
+				DataYMax(m) => 							     format!("dymax  =  {:+05.1}",m),
 				_ => format!("not implemented yet"),
 			}
 		}
