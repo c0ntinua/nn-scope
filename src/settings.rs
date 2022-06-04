@@ -1,6 +1,9 @@
 //use image::{ImageBuffer, RgbImage, GrayImage, Pixel};
 use crate::network::*;
+use crate::Activation::*;
+use crate::DisplaySetting::*;
 use rusttype::{Font, Scale};
+
 
 #[derive(Debug)]
 #[derive(Clone)]
@@ -28,7 +31,7 @@ impl Activation {
 
 #[derive(Debug)]
 #[derive(Clone)]
-pub enum Setting {
+pub enum DisplaySetting {
 	CurrentSetting(usize),
 	NumLayers(usize),
 	BatchSize(usize),
@@ -42,9 +45,87 @@ pub enum Setting {
 	XMax(f64),
 	YMin(f64),
 	YMax(f64),
+	DataXMin(f64),
+	DataYMin(f64),
+	DataXMax(f64),
+	DataYMax(f64),
 }
 
+pub struct Settings {
+	pub canvas_rows : usize,
+	pub canvas_cols : usize,
+	pub control_rows : usize,
+	pub control_cols : usize,
+	pub graph_rows : usize,
+	pub graph_cols : usize,
+	pub plot_rows : usize,
+	pub plot_cols : usize,
+	pub control_row : usize,
+	pub control_col : usize,
+	pub graph_row : usize,
+	pub graph_col : usize,
+	pub plot_row : usize,
+	pub plot_col : usize,
+	pub current_setting : usize,
+	pub nodes_in_layer : Vec<usize>, 
+	pub x_min : f64,
+	pub x_max : f64,
+	pub y_min : f64,
+	pub y_max : f64,
+	pub data_x_min : f64,
+	pub data_x_max : f64,
+	pub data_y_min : f64,
+	pub data_y_max : f64,
+	pub datapoints : usize,
+	pub batch_size : usize,
+	pub manual_training_rounds : usize,
+	pub random_weight_span : f64,
+	pub weight_limit : f64,
+	pub f_color : [u8;3],
+	pub data_color : [u8;3],
+	pub data_mode : bool,
+	pub learning : bool,
+}
 
+impl Settings {
+	pub fn default_settings()->Settings {
+		Settings {
+			canvas_rows : 1400,
+			canvas_cols : 1400,
+			control_rows : 1100,
+			control_cols : 250,
+			graph_rows : 500,
+			graph_cols : 1000,
+			plot_rows : 500,
+			plot_cols : 1000,
+			control_row : 0,
+			control_col : 0,
+			graph_row : 10,
+			graph_col : 250,
+			plot_row : 510,
+			plot_col : 250,
+			current_setting : 0,
+			nodes_in_layer : vec![1,9,9,9,9,9,1],
+			x_min : -10.0,
+			x_max : 10.0,
+			y_min : -5.0,
+			y_max :  5.0,
+			data_x_min : -8.0,
+			data_x_max : 8.0,
+			data_y_min : -4.0,
+			data_y_max : 4.0,
+			datapoints : 7,
+			batch_size : 100,
+			manual_training_rounds : 500,
+			random_weight_span : 1.0,
+			weight_limit : 2.0,
+			f_color : [255,0,0],
+			data_color : [0,255,255],
+			data_mode : true,
+			learning : true,
+		}
+	}
+}
 
 pub fn loaded_font(code : usize) -> Font <'static> {
 		let font_code =  match code {
@@ -60,23 +141,215 @@ pub fn loaded_font(code : usize) -> Font <'static> {
 }
 
 
-pub fn settings_from_network(network : &Network) -> Vec<Setting> {
-	let mut settings = vec![];
-	settings.push(Setting::Rate(network.rate[0]));
-	settings.push(Setting::BatchSize(network.batch_size));
-	settings.push(Setting::NumLayers(network.num_layers));
+pub fn update_display_settings(network : &Network, settings : &Settings) -> Vec<DisplaySetting> {
+	let mut display_settings = vec![];
+	display_settings.push(DisplaySetting::Rate(network.rate[0]));
+	display_settings.push(DisplaySetting::NumLayers(network.num_layers));
+	display_settings.push(DisplaySetting::Datapoints(settings.datapoints));
+	display_settings.push(DisplaySetting::BatchSize(settings.batch_size));
+
 	for i in 0..network.num_layers {
-		settings.push(Setting::NodesInLayer{ num_nodes : network.nodes_in_layer[i], layer : i });	
+		display_settings.push(DisplaySetting::NodesInLayer{ num_nodes : network.nodes_in_layer[i], layer : i });
+		
 	}
 	for i in 0..network.num_layers {
-		settings.push(Setting::ActivationOfLayer{ act : network.act[i], layer : i });
+		display_settings.push(DisplaySetting::ActivationOfLayer{ act : network.act[i], layer : i });
 	}
-	settings.push(Setting::WeightLimit(network.weight_limit));
-	settings.push(Setting::Datapoints(network.datapoints));
-	settings.push(Setting::XMin(network.x_min));
-	settings.push(Setting::XMax(network.x_max));
-	settings.push(Setting::YMin(network.y_min));
-	settings.push(Setting::YMax(network.y_max));
-	settings
+	display_settings.push(DisplaySetting::WeightLimit(settings.weight_limit));
+	display_settings.push(DisplaySetting::XMin(settings.x_min));
+	display_settings.push(DisplaySetting::XMax(settings.x_max));
+	display_settings.push(DisplaySetting::YMin(settings.y_min));
+	display_settings.push(DisplaySetting::YMax(settings.y_max));
+	display_settings.push(DisplaySetting::DataXMin(settings.data_x_min));
+	display_settings.push(DisplaySetting::DataXMax(settings.data_x_max));
+	display_settings.push(DisplaySetting::DataYMin(settings.data_y_min));
+	display_settings.push(DisplaySetting::DataYMax(settings.data_y_max));
+	display_settings
 }
+
+pub fn respond_to_increase(display_setting : &mut DisplaySetting, f : &mut Network, settings : &mut Settings) {
+	match display_setting {
+		&mut DisplaySetting::NumLayers(n) => {
+			if n < 21 {
+				*display_setting = DisplaySetting::NumLayers(n+1);
+				f.nodes_in_layer.insert(n-1,9);
+				let next = f.nodes_in_layer.clone();
+				f.makeover(&next, settings.random_weight_span);
+			}
+		},
+		&mut DisplaySetting::Rate(r) => {  
+			*display_setting = DisplaySetting::Rate(r+0.000001);
+			f.rate = vec![r+0.000001;f.num_layers];
+		},
+		&mut DisplaySetting::WeightLimit(l) => {  
+			*display_setting = WeightLimit(l+1.0);
+			settings.weight_limit = l + 1.0;
+		},
+		&mut DisplaySetting::BatchSize(s) => {  
+			*display_setting = BatchSize(s+1);
+			settings.batch_size= s + 1;
+		},
+		&mut DisplaySetting::Datapoints(s) => {
+			if settings.datapoints < 100 {
+				*display_setting = Datapoints(s+1);
+				settings.datapoints= s +1;
+			}
+		},
+		&mut DisplaySetting::NodesInLayer{num_nodes :n , layer : l} => {
+			if f.nodes_in_layer[l] <= 57 && l != 0 && l != f.num_layers - 1 {
+				*display_setting = NodesInLayer { num_nodes : n+2 , layer :l };
+				f.nodes_in_layer[l] = n +2;
+				let next = f.nodes_in_layer.clone();
+				f.makeover(&next, settings.random_weight_span);
+			}
+		},
+		&mut DisplaySetting::ActivationOfLayer{act : a , layer : l} => {
+			let next = match a {
+				Identity => Relu,
+				Relu => Tanh,
+				Tanh =>Poly,
+				Poly => Sin,
+				Sin => Identity,
+			};
+			*display_setting = ActivationOfLayer{act : next , layer : l};
+			f.act[l] = next;
+		},
+		&mut DisplaySetting::XMax(l) => {  
+			*display_setting = XMax(l+0.1);
+			settings.x_max = l + 0.1;
+		},
+		&mut DisplaySetting::XMin(l) => {
+			if settings.x_min + 0.1 < settings.x_max {  
+				*display_setting = XMin(l+0.1);
+				settings.x_min = l + 0.1;
+			}
+		},
+		&mut DisplaySetting::DataXMin(l) => {
+			if settings.data_x_min + 0.1 < settings.data_x_max {  
+				*display_setting = DataXMin(l+0.1);
+				settings.data_x_min = l + 0.1;
+			}
+		},
+		&mut DisplaySetting::YMax(l) => {  
+			*display_setting = YMax(l+0.1);
+			settings.y_max = l + 0.1;
+		},
+		&mut DisplaySetting::DataYMax(l) => {  
+			*display_setting = DataYMax(l+0.1);
+			settings.data_y_max = l + 0.1;
+		},
+		&mut DisplaySetting::DataXMax(l) => {  
+			*display_setting = DataXMax(l+0.1);
+			settings.data_y_max = l + 0.1;
+		},
+		&mut DisplaySetting::YMin(l) => {
+			if settings.y_min +0.1 < settings.y_max {  
+				*display_setting = YMin(l+0.1);
+				settings.y_min = l + 0.1;
+			}
+		},
+		&mut DisplaySetting::DataYMin(l) => {
+			if settings.data_y_min + 0.1 < settings.data_y_max {  
+				*display_setting = DataYMin(l+0.1);
+				settings.data_y_min = l + 0.1;
+			}
+		},
+		_ => (),
+		}
+										
+}
+pub fn respond_to_decrease(display_setting : &mut DisplaySetting, f : &mut Network, settings : &mut Settings) {
+	match display_setting {
+			&mut DisplaySetting::NumLayers(n) => {
+				if n > 3 {
+					*display_setting = NumLayers(n-1);
+					f.nodes_in_layer.remove(n-2);
+					let next = f.nodes_in_layer.clone();
+					f.makeover(&next, settings.random_weight_span);
+				}
+			},
+			&mut DisplaySetting::Rate(r) => {  
+				*display_setting = Rate(r-0.000001);
+				f.rate = vec![r-0.000001;f.num_layers];
+			},
+			&mut DisplaySetting::WeightLimit(l) => {
+				if settings.weight_limit >= 2.0 { 
+					*display_setting = WeightLimit(l-1.0);
+					settings.weight_limit = l - 1.0;
+				}
+			},
+			&mut DisplaySetting::BatchSize(s) => {
+				if settings.batch_size >= 2 {
+					*display_setting = BatchSize(s-1);
+					settings.batch_size= s - 1;
+				}
+			},
+			&mut DisplaySetting::Datapoints(s) => {
+				if settings.datapoints >= 2 {
+					*display_setting = Datapoints(s-1);
+					settings.datapoints= s - 1;
+				}
+			},
+			&mut DisplaySetting::NodesInLayer{num_nodes :n , layer : l} => {
+				if f.nodes_in_layer[l] >= 3 && l != 0 && l != f.num_layers - 1 {
+					*display_setting = DisplaySetting::NodesInLayer{ num_nodes : n- 2 , layer :l };
+					f.nodes_in_layer[l] = n  - 2;
+					let next = f.nodes_in_layer.clone();
+					f.makeover(&next, settings.random_weight_span);
+				}
+			},
+			&mut DisplaySetting::ActivationOfLayer{act : a , layer : l} => {
+				let next = match a {
+					Identity => Sin,
+					Relu => Identity,
+					Tanh => Relu,
+					Sin => Poly,
+					Poly => Tanh,
+				};
+				*display_setting = DisplaySetting::ActivationOfLayer{act : next , layer : l};
+				f.act[l] = next;
+			},
+			&mut DisplaySetting::XMin(l) => {  
+				*display_setting = XMin(l-0.1);
+				settings.x_min = l - 0.1;
+			},
+			&mut DisplaySetting::DataXMin(l) => {  
+				*display_setting = DataXMin(l-0.1);
+				settings.data_x_min = l - 0.1;
+			},
+			&mut DisplaySetting::XMax(l) => {
+				if settings.x_min +0.1 < settings.x_max {  
+					*display_setting = XMax(l-0.1);
+					settings.x_max = l - 0.1;
+				}
+			},
+			&mut DisplaySetting::YMin(l) => {  
+				*display_setting = YMin(l-0.1);
+				settings.y_min = l - 0.1;
+			},
+			&mut DisplaySetting::DataYMin(l) => {  
+				*display_setting = DataYMin(l-0.1);
+				settings.data_y_min = l - 0.1;
+			},
+			&mut DisplaySetting::YMax(l) => {
+				if settings.y_min +0.1 < settings.y_max {  
+					*display_setting = YMax(l-0.1);
+					settings.y_max = l - 0.1;
+				}
+			},
+			&mut DisplaySetting::DataYMax(l) => {
+				if settings.data_y_min +0.1 < settings.data_y_max {  
+					*display_setting = DataYMax(l-0.1);
+					settings.data_y_max = l - 0.1;
+				}
+			},
+			&mut DisplaySetting::DataXMax(l) => {
+				if settings.data_x_min +0.1 < settings.data_x_max {  
+					*display_setting = DataXMax(l-0.1);
+					settings.data_x_max = l - 0.1;
+				}
+			},
+			_ => (),
+		}
+	}
 

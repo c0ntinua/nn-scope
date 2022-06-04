@@ -6,7 +6,7 @@ use imageproc::drawing::*;
 use rand::random;
 use crate::settings::*;
 use crate::settings::Activation::*;
-use crate::settings::Setting::*;
+use crate::settings::DisplaySetting::*;
 
 pub struct Canvas {
 	pub rows : usize,
@@ -70,25 +70,7 @@ impl Canvas {
 		}
 	}
 		
-	
 	pub fn add_closure<F>(&mut self, g : F, x_range : (f64,f64), y_range : (f64,f64), rgb : [u8;3], radius : i32 ) 
-		where F : Fn(f64) -> f64 {
-		let rows = self.rows;
-		let cols = self.cols;
-		let x_unit_per_col = (x_range.1 - x_range.0)/(cols as f64);
-		//let pixels_per_unit_y = rows as f64 / (y_range.1 - y_range.0);
-		let mut current_x = x_range.0;
-		for col in 0..cols {
-			current_x = col as f64 * x_unit_per_col + x_range.0;
-			let f_of_x = g(current_x);
-			if f_of_x > y_range.0 && f_of_x < y_range.1 {
-				let row = (( (f_of_x - y_range.0)/(y_range.1 - y_range.0) )*(rows as f64)).floor() as i32;
-				draw_filled_circle_mut(&mut self.image, (col as i32, row ) , radius, image::Rgb(rgb)); 
-			} 
-		}
-
-	}
-	pub fn add_closure_t<F>(&mut self, g : F, x_range : (f64,f64), y_range : (f64,f64), rgb : [u8;3], radius : i32 ) 
 		where F : Fn(f64) -> f64 {
 		let rows = self.rows;
 		let cols = self.cols;
@@ -105,8 +87,6 @@ impl Canvas {
 				let this_row = (( (f_of_x - y_range.0)/(y_range.1 - y_range.0) )*(rows as f64)).floor() as f32;
 				let this_col = col as f32;
 				if col != 0 {
-					// draw_line_segment_mut(&mut self.image, 
-// 						(last_col, last_row), (this_col, this_row), image::Rgb(rgb));
 						Canvas::draw_thick_line(&mut self.image, (last_col, last_row), (this_col, this_row), 3, rgb);
 					}
 				last_col = this_col; last_row= this_row;
@@ -145,26 +125,24 @@ impl Canvas {
 			} 
 		}
 	}
-	pub fn add_network_weights(&mut self, network : &Network) {
+	pub fn add_network_weights(&mut self, network : &Network, pos : &[(f32,f32)], weight_limit : f64) {
     	let N = network.layer_list.len();
     	for s in 0..=N-2 {
 			let s_layer = network.layer_list[s];
 			for t in network.layer_start[s_layer+1]..=network.layer_stop[s_layer+1] {
-				let hue = ((network.weight[t*N+s].abs()/network.weight_limit)*255.0).trunc() as u8;
+				let hue = ((network.weight[t*N+s].abs()/weight_limit)*255.0).trunc() as u8;
 				let rgb = [hue,hue,hue];
 				let thickness = (hue / 64) as usize;
-// 				draw_line_segment_mut(&mut self.image, 
-// 					(network.pos_x[s], network.pos_y[s]), (network.pos_x[t], network.pos_y[t]), image::Rgb(rgb));
-				Canvas::draw_thick_line(&mut self.image, (network.pos_x[s] , network.pos_y[s]) , 
-					(network.pos_x[t], network.pos_y[t]), thickness, rgb); 
+				Canvas::draw_thick_line(&mut self.image, pos[s] , 
+					pos[t], thickness, rgb); 
 			}
 		}
 	}
 	
-	pub fn add_network_nodes(&mut self, network : &Network, rgb : [u8;3], radius : i32) {
-    	let num_nodes = network.layer_list.len();
+	pub fn add_network_nodes(&mut self, pos : &[(f32,f32)], rgb : [u8;3], radius : i32) {
+    	let num_nodes = pos.len();
 		for n in 0..num_nodes {
-			draw_filled_circle_mut(&mut self.image, (network.pos_x[n].trunc() as i32, network.pos_y[n].trunc() as i32) , radius, image::Rgb(rgb)); 	
+			draw_filled_circle_mut(&mut self.image, (pos[n].0.trunc() as i32, pos[n].1.trunc()as i32) , radius, image::Rgb(rgb)); 	
 		}
 	}
 	
@@ -185,9 +163,10 @@ impl Canvas {
 		buffer
 	}
 	
-	pub fn add_settings(&mut self, settings : &[Setting], font : &Font, current_setting :  usize) {
-		let size_float = 25.0; 
-		let size_int = 25;
+
+	pub fn add_settings(&mut self, settings : &[DisplaySetting], font : &Font, current_setting :  usize) {
+		let size_float = 20.0; 
+		let size_int = 20;
 		let scale = Scale { x: size_float, y: size_float};
 		let mut rgb = [255u8;3];
 		let mut display_string = vec!["not_implemented_yet".to_string();settings.len()];
@@ -197,20 +176,25 @@ impl Canvas {
 				NumLayers(n) =>                              format!("layers   =  {:02}",n),
 				NodesInLayer{num_nodes : n, layer : l} =>    format!("lay{:2}    =  {:02}",l,n),
 				ActivationOfLayer{ act : f ,layer : l }=>    format!("fun{:2}    =  {}",l,f.abbr()),
-				//RateOfLayer{ rate: r, layer : l} =>          format!("rate{:1}      =  {:.5}",l,r),
+				RateOfLayer{ rate: r, layer : l} =>          format!("rate{:1}      =  {:.5}",l,r),
 				WeightLimit(w) => 						     format!("wgtlmt   =  {:.1}",w), 
 				BatchSize(n) =>                              format!("btch     =  {:03}",n),
 				Datapoints(n) =>                             format!("data     =  {:03}",n),
-				XMin(m) => 									 format!("xmin     =  {:+05.1}",m),
-				XMax(m) => 									 format!("xmax     =  {:+05.1}",m),
-				YMin(m) => 									 format!("ymin     =  {:+05.1}",m),
-				YMax(m) => 									 format!("ymax     =  {:+05.1}",m),
+				XMin(m) => 									 format!("fxmin    =  {:+05.1}",m),
+				XMax(m) => 									 format!("fxmax    =  {:+05.1}",m),
+				YMin(m) => 									 format!("fymin    =  {:+05.1}",m),
+				YMax(m) => 									 format!("fymax    =  {:+05.1}",m),
+				DataXMin(m) => 							     format!("dxmin    =  {:+05.1}",m),
+				DataXMax(m) => 							     format!("dxmax    =  {:+05.1}",m),
+				DataYMin(m) => 							     format!("dymin    =  {:+05.1}",m),
+				DataYMax(m) => 							     format!("dymax    =  {:+05.1}",m),
 				_ => format!("not implemented yet"),
 			}
 		}
 		for i in 0..settings.len() {
+			let j = (i%2) as i32;
 			let x = 10;
-			let y = (i*size_int) as i32;
+			let y = i as i32 * size_int;
 			if i == current_setting { rgb = [255u8,255u8,0u8];} else { rgb =[255u8,255u8,255u8];}
 			draw_text_mut(& mut self.image, image::Rgb(rgb), x, y, scale, font,  &display_string[i]);
 		}

@@ -2,43 +2,32 @@ use crate::canvas::*;
 use crate::vector::*;
 use crate::settings::*;
 use crate::settings::Activation::*;
-use crate::settings::Setting::*;
+use crate::settings::DisplaySetting::*;
 use libm::*;
 use crate::num::traits::Pow;
 
 #[derive(Debug)]
 pub struct Network {
 	pub rate : Vec<f64>,
-	pub num_nodes : usize,
 	pub num_layers : usize,
+	pub num_nodes : usize,
 	pub value : Vec<f64>,
 	pub memory : Vec<f64>,
-	pub last_out : Vec<f64>,
 	pub delta : Vec<f64>,
 	pub bias : Vec<f64>,
 	pub weight : Vec<f64>,
-	pub random_weight_span : f64,
 	pub act : Vec<Activation>,
 	pub nodes_in_layer: Vec<usize>,
 	pub layer_list : Vec<usize>,
 	pub layer_start : Vec<usize>,
 	pub layer_stop : Vec<usize>,
-	pub weight_limit : f64,
-	pub pos_x: Vec<f32>,
-	pub pos_y: Vec<f32>,
-	pub current_setting : usize,
-	pub batch_size : usize,
-	pub datapoints : usize,
-	pub x_min : f64,
-	pub x_max : f64,
-	pub y_min : f64,
-	pub y_max : f64,
 }
+
 
 impl Network {
 
 			
-	pub fn dense(nodes_in_layer : &[usize]) -> Network {
+	pub fn dense(nodes_in_layer : &[usize], random_weight_span : f64) -> Network {
 		let num_layers = nodes_in_layer.len(); 
 		let layer_list = Network::layer_list(&nodes_in_layer);
 		let layer_start = Network::layer_start(&layer_list);
@@ -46,37 +35,27 @@ impl Network {
 		let num_nodes = layer_list.len();
 		let nodes_in_layer = nodes_in_layer.to_vec();
 		let mut act = vec![Relu;num_layers];
-		let random_weight_span = 1.0;
 		act[0] = Identity; act[num_layers - 1] = Identity;
+
 		let network = Network {
 			rate : vec![0.00001;num_layers],
-			num_nodes,
 			num_layers,
+			num_nodes,
 			value : vec![0.0;num_nodes], 
-			memory : vec![0.0;num_nodes],
-			last_out : vec![0.0;num_nodes],
+			memory : vec![0.0;num_nodes],		
 			delta : vec![0.0;num_nodes],
 			bias : random_vector_in(num_nodes, (-0.00,0.00)), 
 			weight : random_vector_in(num_nodes*num_nodes, (-random_weight_span,random_weight_span)), 
-			random_weight_span,
 			act,
 			nodes_in_layer,
 			layer_list,
 			layer_start,
-			layer_stop,
-			weight_limit : 5.0,
-			pos_x : vec![0.0;num_nodes],
-			pos_y : vec![0.0;num_nodes],
-			current_setting : 0,
-			batch_size : 100,
-			datapoints : 5,
-			x_min : -std::f64::consts::PI,
-			x_max : std::f64::consts::PI,
-			y_min : -9.0,
-			y_max : 9.0,
+			layer_stop,	
 		};
 		network
 	}
+
+
 	pub fn fwd(&mut self, x : f64) -> f64 {
 		let N = self.num_nodes;
 		self.value[0] = x;
@@ -145,14 +124,14 @@ impl Network {
 	}
 	
 	
-	pub fn clean(&mut self) {
+	pub fn clean(&mut self, weight_limit : f64) {
 		for w in self.weight.iter_mut() {
-			if *w > self.weight_limit { *w = self.weight_limit;}
-			if *w <  -self.weight_limit { *w = -self.weight_limit;}
+			if *w > weight_limit { *w = weight_limit;}
+			if *w <  -weight_limit { *w = -weight_limit;}
 		}
 		for b in self.bias.iter_mut() {
-			if *b > self.weight_limit { *b = self.weight_limit;}
-			if *b <  -self.weight_limit { *b = -self.weight_limit;}
+			if *b > weight_limit { *b = weight_limit;}
+			if *b <  -weight_limit { *b = -weight_limit;}
 		}
 	}
 	
@@ -162,7 +141,7 @@ impl Network {
 		let mut v = vec![7;layers];
 		v[0] = 1;
 		v[layers - 1] = 1;
-		Network::dense(&v)
+		Network::dense(&v, 1.0)
 	}
 	
 		
@@ -174,11 +153,10 @@ impl Network {
     	list
     }
     
-    pub fn refresh_pos(&mut self, buffer : &Canvas) {
+    pub fn positions(&self, buffer : &Canvas) -> Vec<(f32,f32)> {
     	let height = (buffer.rows-100) as f32;
     	let width  = (buffer.cols) as f32;
-    	self.pos_x = vec![0.0;self.layer_list.len()];
-    	self.pos_y = vec![0.0;self.layer_list.len()];
+		let mut position =vec![ (0.0,0.0); self.layer_list.len() ];
     	let num_layers = self.nodes_in_layer.len();
     	let dx = width/((num_layers + 2) as f32);
     	let mut counter = 0;
@@ -186,12 +164,12 @@ impl Network {
     		let dy = if self.nodes_in_layer[layer] == 1 {0.0} else { height/( self.nodes_in_layer[layer] as f32 - 1.0)};
     		let mut adjust : f32 = 0.0;
     		for n in 0..self.nodes_in_layer[layer] {
-    			self.pos_x[counter] = ((layer as f32 + 1.5) *dx);
-    			self.pos_y[counter] = height/2.0 + adjust * dy + 50.0;
+				position[counter] =((layer as f32 + 1.5) *dx, height/2.0 + adjust * dy + 50.0);
     			counter += 1;
     			adjust = if n%2 == 0 {adjust.abs() + 1.0} else {-adjust};
     		}
     	}
+		position
     }
     
     pub fn layer_start(layer_list : &[usize]) -> Vec<usize> {
@@ -223,202 +201,29 @@ impl Network {
     	}
 		result  
 	}
+
 	
-	pub fn estimated_y_range(&self, x_range : (f64,f64)) -> (f64,f64) {
-		let mut max_so_far = -1000000.0;
-		let mut min_so_far = 1000000.0;
-		let dx = (x_range.1-x_range.0)/100.0;
-		for i in 0..100 {
-			let sample_x = x_range.0 + (i as f64)*dx;
-			let y = self.im_fwd(sample_x);
-			if y > max_so_far { max_so_far = y;}
-			if y < min_so_far { min_so_far = y;}
-		}
-		(min_so_far-1.0,max_so_far+1.0)
-	}
-	pub fn makeover(&mut self, nodes_in_layer : &[usize]) {
+	pub fn makeover(&mut self, nodes_in_layer : &[usize], weight_span : f64) {
 		self.nodes_in_layer = nodes_in_layer.to_vec();
-		self.num_layers = self.nodes_in_layer.len(); 
+		self.num_layers = self.nodes_in_layer.len();
 		self.layer_list = Network::layer_list(&self.nodes_in_layer);
 		self.layer_start = Network::layer_start(&self.layer_list);
 		self.layer_stop = Network::layer_stop(&self.layer_list);
 		self.num_nodes = self.layer_list.len();
 		self.act = vec![Relu;self.num_layers];
 		self.act[0] = Identity; self.act[self.num_layers - 1] = Identity;
-		self.weight = 	random_vector_in(self.num_nodes*self.num_nodes, (-1.0,1.0)  );
-		self.bias = random_vector_in(self.num_nodes, (-0.00,0.00) ); 
-		self.pos_x = vec![0.0;self.num_nodes];
-		self.pos_y = vec![0.0;self.num_nodes];
-		self.value = vec![0.0;self.num_nodes];
-		self.memory = vec![0.0;self.num_nodes];
+		self.value  = vec![0.0;self.num_nodes]; 
+		self.memory = vec![0.0;self.num_nodes];		
 		self.delta = vec![0.0;self.num_nodes];
-		let r = self.rate[0];
-		self.rate = vec![r;self.num_layers];
-		//self.weight_limit = 5.0;
+		self.bias = random_vector_in(self.num_nodes, (-0.00,0.00)); 
+		self.weight = random_vector_in(self.num_nodes*self.num_nodes, (-weight_span,weight_span)); 
+		let rate = self.rate[0];
+		self.rate = vec![rate;self.num_layers];
 	}
 	
 	
-	pub fn respond_to_increase(&mut self, setting : &mut Setting) {
-		match setting {
-				&mut Setting::NumLayers(n) => {
-					if n < 17 {
-						*setting = NumLayers(n+1);
-						let mut next = vec![9;n+1];
-						next[0] = 1;
-						next[n] = 1;
-						self.makeover(&next);
-						}
-				},
-				&mut Setting::Rate(r) => {  
-					*setting = Rate(r+0.000001);
-					self.rate = vec![r+0.000001;self.num_layers];
-				},
-				&mut Setting::WeightLimit(l) => {  
-					*setting = WeightLimit(l+1.0);
-					self.weight_limit = l + 1.0;
-				},
-				&mut Setting::BatchSize(s) => {  
-					*setting = BatchSize(s+1);
-					self.batch_size= s + 1;
-				},
-				&mut Setting::Datapoints(s) => {
-					if self.datapoints < 100 {
-						*setting = Datapoints(s+1);
-						self.datapoints= s +1;
-					}
-				},
-				&mut Setting::NodesInLayer{num_nodes :n , layer : l} => {
-					if self.nodes_in_layer[l] <= 57 && l != 0 && l != self.num_layers - 1 {
-						*setting = NodesInLayer { num_nodes : n+2 , layer :l };
-						self.nodes_in_layer[l] += 2;
-						let next = self.nodes_in_layer.clone();
-						self.makeover(&next);
-					}
-				},
-				&mut Setting::ActivationOfLayer{act : f , layer : l} => {
-					let next = match f {
-						Identity => Relu,
-						Relu => Tanh,
-						Tanh =>Poly,
-						Poly => Sin,
-						Sin => Identity,
-					};
-					*setting = ActivationOfLayer{act : next , layer : l};
-					self.act[l] = next;
-				},
-				&mut Setting::XMax(l) => {  
-					*setting = XMax(l+0.1);
-					self.x_max = l + 0.1;
-				},
-				&mut Setting::XMin(l) => {
-					if self.x_min +0.1 < self.x_max {  
-						*setting = XMin(l+0.1);
-						self.x_min = l + 0.1;
-					}
-				},
-				&mut Setting::YMax(l) => {  
-					*setting = YMax(l+0.1);
-					self.y_max = l + 0.1;
-				},
-				&mut Setting::YMin(l) => {
-					if self.y_min +0.1 < self.y_max {  
-						*setting = YMin(l+0.1);
-						self.y_min = l + 0.1;
-					}
-				},
-				_ => (),
-				}
-												
-	}
-	pub fn respond_to_decrease(&mut self, setting : &mut Setting) {
-		match setting {
-				&mut Setting::NumLayers(n) => {
-					if n > 3 {
-						*setting = NumLayers(n-1);
-						self.nodes_in_layer = vec![11;n-1];
-						self.nodes_in_layer[0] = 1;
-						self.nodes_in_layer[n-2] = 1;
-						self.num_layers = self.nodes_in_layer.len(); 
-						self.layer_list = Network::layer_list(&self.nodes_in_layer);
-						self.layer_start = Network::layer_start(&self.layer_list);
-						self.layer_stop = Network::layer_stop(&self.layer_list);
-						self.num_nodes = self.layer_list.len();
-						self.act = vec![Relu;self.num_layers];
-						self.act[0] = Identity; self.act[self.num_layers - 1] = Identity;
-						self.weight = 	random_vector_in(self.num_nodes*self.num_nodes, (-1.0,1.0)  );
-						self.bias = random_vector_in(self.num_nodes, (-0.00,0.00) ); 
-						self.pos_x = vec![0.0;self.num_nodes];
-						self.pos_y = vec![0.0;self.num_nodes];
-						self.value = vec![0.0;self.num_nodes];
-						self.memory = vec![0.0;self.num_nodes];
-						self.delta = vec![0.0;self.num_nodes];
-						self.rate = vec![0.001;self.num_layers];
-					}
-				},
-				&mut Setting::Rate(r) => {  
-					*setting = Rate(r-0.000001);
-					self.rate = vec![r-0.000001;self.num_layers];
-				},
-				&mut Setting::WeightLimit(l) => {
-					if self.weight_limit >= 2.0 { 
-						*setting = WeightLimit(l-1.0);
-						self.weight_limit = l - 1.0;
-					}
-				},
-				&mut Setting::BatchSize(s) => {
-					if self.batch_size >= 2 {
-						*setting = BatchSize(s-1);
-						self.batch_size= s - 1;
-					}
-				},
-				&mut Setting::Datapoints(s) => {
-					if self.datapoints >= 2 {
-						*setting = Datapoints(s-1);
-						self.datapoints= s - 1;
-					}
-				},
-				&mut Setting::NodesInLayer{num_nodes :n , layer : l} => {
-					if self.nodes_in_layer[l] >= 3 && l != 0 && l != self.num_layers - 1 {
-						*setting = NodesInLayer{ num_nodes : n- 2 , layer :l };
-						self.nodes_in_layer[l] -= 2;
-						let next = self.nodes_in_layer.clone();
-						self.makeover(&next);
-					}
-				},
-				&mut Setting::ActivationOfLayer{act : f , layer : l} => {
-					let next = match f {
-						Identity => Sin,
-						Relu => Identity,
-						Tanh => Relu,
-						Sin => Poly,
-						Poly => Tanh,
-					};
-					*setting = ActivationOfLayer{act : next , layer : l};
-					self.act[l] = next;
-				},
-				&mut Setting::XMin(l) => {  
-					*setting = XMin(l-0.1);
-					self.x_min = l - 0.1;
-				},
-				&mut Setting::XMax(l) => {
-					if self.x_min +0.1 < self.x_max {  
-						*setting = XMax(l-0.1);
-						self.x_max = l - 0.1;
-					}
-				},
-				&mut Setting::YMin(l) => {  
-					*setting = YMin(l-0.1);
-					self.y_min = l - 0.1;
-				},
-				&mut Setting::YMax(l) => {
-					if self.y_min +0.1 < self.y_max {  
-						*setting = YMax(l-0.1);
-						self.y_max = l - 0.1;
-					}
-				},
-				_ => (),
-			}
-		}
+		
+	
 						
 	
 }
