@@ -127,7 +127,7 @@ impl Settings {
 			data_color : [0,255,255],
 			data_mode : true,
 			learning : true,
-			plot_thickness : 12,
+			plot_thickness : 2,
 			model : 0,
 			number_of_models : 20,
 			display_error : 0.0,

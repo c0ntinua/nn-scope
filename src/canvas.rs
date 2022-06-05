@@ -97,8 +97,9 @@ impl Canvas {
 
 	}
 	pub fn draw_thick_line(image : &mut RgbImage, start : (f32,f32), stop : (f32,f32), thickness : usize, rgb : [u8;3]) {
-		let piece = 0.25;
-		for i in 0..thickness {
+		let piece = 1.0;
+		let thickness =  thickness as i64;
+		for i in (-thickness)..thickness {
 			let mod_start = (start.0 + (i as f32)*piece, start.1 + (i as f32)*piece);
 			let mod_stop = (stop.0 + (i as f32)*piece, stop.1 + (i as f32)*piece);
 			draw_line_segment_mut(image, mod_start, mod_stop, image::Rgb(rgb));
