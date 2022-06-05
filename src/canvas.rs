@@ -47,29 +47,31 @@ impl Canvas {
 	
 
 	pub fn add_grid(&mut self, x_range : (f64,f64), y_range : (f64,f64),rgb : [u32;3]) {
+		let dim_value = [20,20,20];
+		let bright_value = [50,50,50];
 		let height = self.image.height();
 		let width = self.image.width();
 		let mut current_val = y_range.0.trunc();
-		while  current_val < y_range.1 {
+		while  current_val <= y_range.1 {
 			let row = ((current_val -  y_range.0)/(y_range.1 - y_range.0)) as f32;
 			let row = row * height as f32;
-			let this_rgb = if current_val == 0.0 {[150,150,150]} else {[50,50,50]};
+			let this_rgb = if current_val == 0.0 {bright_value} else {dim_value};
 			draw_line_segment_mut(&mut self.image, 
-				(0.0, row), ((width - 1) as f32, row), image::Rgb(this_rgb));
+				(0.0, row ), ((width - 1) as f32, row), image::Rgb(this_rgb));
 			current_val += 1.0;
 		}
 		let mut current_val = x_range.0.trunc();
-		while  current_val < x_range.1 {
+		while  current_val <= x_range.1 {
 			let col = ((current_val -  x_range.0)/(x_range.1 - x_range.0)) as f32;
 			let col = col * width as f32;
-			let this_rgb = if current_val == 0.0 {[150,150,150]} else {[50,50,50]};
+			let this_rgb = if current_val == 0.0 {bright_value} else {dim_value};
 			draw_line_segment_mut(&mut self.image, 
 				(col, 0.0), (col , (height - 1) as f32), image::Rgb(this_rgb));
 			current_val += 1.0;
 		}
 	}
 		
-	pub fn add_closure<F>(&mut self, g : F, x_range : (f64,f64), y_range : (f64,f64), rgb : [u8;3], radius : i32 ) 
+	pub fn add_closure<F>(&mut self, g : F, x_range : (f64,f64), y_range : (f64,f64), rgb : [u8;3], thickness : usize ) 
 		where F : Fn(f64) -> f64 {
 		let rows = self.rows;
 		let cols = self.cols;
@@ -77,7 +79,6 @@ impl Canvas {
 		let mut last_row = 0f32;
 		
 		let x_unit_per_col = (x_range.1 - x_range.0)/(cols as f64);
-		//let pixels_per_unit_y = rows as f64 / (y_range.1 - y_range.0);
 		let mut current_x = x_range.0;
 		for col in 0..cols {
 			current_x = col as f64 * x_unit_per_col + x_range.0;
@@ -86,7 +87,7 @@ impl Canvas {
 				let this_row = (( (f_of_x - y_range.0)/(y_range.1 - y_range.0) )*(rows as f64)).floor() as f32;
 				let this_col = col as f32;
 				if col != 0 {
-						Canvas::draw_thick_line(&mut self.image, (last_col, last_row), (this_col, this_row), 3, rgb);
+						Canvas::draw_thick_line(&mut self.image, (last_col, last_row), (this_col, this_row), thickness, rgb);
 					}
 				last_col = this_col; last_row= this_row;
 				//draw_filled_circle_mut(&mut self.image, (this_col, this_row ) , radius, image::Rgb(rgb));
@@ -175,21 +176,21 @@ impl Canvas {
 		for i in 0..settings.len() {
 			display_string[i] = match settings[i] {
 				Rate(r) =>                                   format!("rate   =  {:.6}",r),
-				NumLayers(n) =>                              format!("layers =  {:02}",n),
-				NodesInLayer{num_nodes : n, layer : l} =>    format!("lay{:2}  =  {:02}",l,n),
+				NumLayers(n) =>                              format!("layers =  {:03}",n),
+				NodesInLayer{num_nodes : n, layer : l} =>    format!("lay{:2}  =  {:03}",l,n),
 				ActivationOfLayer{ act : f ,layer : l }=>    format!("fun{:2}  =  {}",l,f.abbr()),
 				RateOfLayer{ rate: r, layer : l} =>          format!("rate{:1}    =  {:.5}",l,r),
 				WeightLimit(w) => 						     format!("wgtlmt =  {:.1}",w), 
 				BatchSize(n) =>                              format!("btch   =  {:03}",n),
 				Datapoints(n) =>                             format!("data   =  {:03}",n),
-				XMin(m) => 									 format!("fxmin  =  {:+05.1}",m),
-				XMax(m) => 									 format!("fxmax  =  {:+05.1}",m),
-				YMin(m) => 									 format!("fymin  =  {:+05.1}",m),
-				YMax(m) => 									 format!("fymax  =  {:+05.1}",m),
-				DataXMin(m) => 							     format!("dxmin  =  {:+05.1}",m),
-				DataXMax(m) => 							     format!("dxmax  =  {:+05.1}",m),
-				DataYMin(m) => 							     format!("dymin  =  {:+05.1}",m),
-				DataYMax(m) => 							     format!("dymax  =  {:+05.1}",m),
+				XMin(m) => 									 format!("fxmin  =  {:+03}",m.trunc() as i32),
+				XMax(m) => 									 format!("fxmax  =  {:+03}",m.trunc() as i32),
+				YMin(m) => 									 format!("fymin  =  {:+03}",m.trunc() as i32),
+				YMax(m) => 									 format!("fymax  =  {:+03}",m.trunc() as i32),
+				DataXMin(m) => 							     format!("dxmin  =  {:+03}",m.trunc() as i32),
+				DataXMax(m) => 							     format!("dxmax  =  {:+03}",m.trunc() as i32),
+				DataYMin(m) => 							     format!("dymin  =  {:+03}",m.trunc() as i32),
+				DataYMax(m) => 							     format!("dymax  =  {:+03}",m.trunc() as i32),
 				_ => format!("not implemented yet"),
 			}
 		}

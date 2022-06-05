@@ -19,11 +19,11 @@ pub enum Activation {
 impl Activation {
 	pub fn abbr(&self) -> String {
 		match self {
-			Activation::Identity => "id  ".to_string(),
-			Activation::Tanh =>     "tanh".to_string(),
-			Activation::Relu =>     "relu".to_string(),
+			Activation::Identity => "idn  ".to_string(),
+			Activation::Tanh =>     "tnh".to_string(),
+			Activation::Relu =>     "rel".to_string(),
 			Activation::Sin =>      "sin ".to_string(),
-			Activation::Poly =>     "poly".to_string(),
+			Activation::Poly =>     "pol".to_string(),
 		}
 	}
 }
@@ -85,6 +85,10 @@ pub struct Settings {
 	pub data_color : [u8;3],
 	pub data_mode : bool,
 	pub learning : bool,
+	pub plot_thickness : usize,
+	pub model : usize,
+	pub number_of_models : usize,
+	pub display_error : f64,
 }
 
 impl Settings {
@@ -96,24 +100,24 @@ impl Settings {
 			control_cols : 190,
 			graph_rows : 500,
 			graph_cols : 1000,
-			plot_rows : 500,
-			plot_cols : 900,
+			plot_rows : 580,
+			plot_cols : 910,
 			control_row : 0,
 			control_col : 0,
 			graph_row : 10,
 			graph_col : 130,
-			plot_row : 510,
-			plot_col : 180,
+			plot_row : 505,
+			plot_col : 170,
 			current_setting : 0,
 			nodes_in_layer : vec![1,9,9,9,9,9,1],
 			x_min : -10.0,
 			x_max : 10.0,
 			y_min : -5.0,
 			y_max :  5.0,
-			data_x_min : -8.0,
-			data_x_max : 8.0,
-			data_y_min : -4.0,
-			data_y_max : 4.0,
+			data_x_min : -10.0,
+			data_x_max : 10.0,
+			data_y_min : -5.0,
+			data_y_max : 5.0,
 			datapoints : 7,
 			batch_size : 100,
 			manual_training_rounds : 500,
@@ -123,6 +127,12 @@ impl Settings {
 			data_color : [0,255,255],
 			data_mode : true,
 			learning : true,
+			plot_thickness : 12,
+			model : 0,
+			number_of_models : 20,
+			display_error : 0.0,
+
+		
 		}
 	}
 }
@@ -215,43 +225,43 @@ pub fn respond_to_increase(display_setting : &mut DisplaySetting, f : &mut Netwo
 			f.act[l] = next;
 		},
 		&mut DisplaySetting::XMax(l) => {  
-			*display_setting = XMax(l+0.1);
-			settings.x_max = l + 0.1;
+			*display_setting = XMax(l+1.0);
+			settings.x_max = l + 1.0;
 		},
 		&mut DisplaySetting::XMin(l) => {
-			if settings.x_min + 0.1 < settings.x_max {  
-				*display_setting = XMin(l+0.1);
-				settings.x_min = l + 0.1;
+			if settings.x_min + 1.0 < settings.x_max {  
+				*display_setting = XMin(l+1.0);
+				settings.x_min = l + 1.0;
 			}
 		},
 		&mut DisplaySetting::DataXMin(l) => {
-			if settings.data_x_min + 0.1 < settings.data_x_max {  
-				*display_setting = DataXMin(l+0.1);
-				settings.data_x_min = l + 0.1;
+			if settings.data_x_min + 1.0 < settings.data_x_max {  
+				*display_setting = DataXMin(l+1.0);
+				settings.data_x_min = l + 1.0;
 			}
 		},
 		&mut DisplaySetting::YMax(l) => {  
-			*display_setting = YMax(l+0.1);
-			settings.y_max = l + 0.1;
+			*display_setting = YMax(l+1.0);
+			settings.y_max = l + 1.0;
 		},
 		&mut DisplaySetting::DataYMax(l) => {  
-			*display_setting = DataYMax(l+0.1);
-			settings.data_y_max = l + 0.1;
+			*display_setting = DataYMax(l+1.0);
+			settings.data_y_max = l + 1.0;
 		},
 		&mut DisplaySetting::DataXMax(l) => {  
-			*display_setting = DataXMax(l+0.1);
-			settings.data_x_max = l + 0.1;
+			*display_setting = DataXMax(l+1.0);
+			settings.data_x_max = l + 1.0;
 		},
 		&mut DisplaySetting::YMin(l) => {
-			if settings.y_min +0.1 < settings.y_max {  
-				*display_setting = YMin(l+0.1);
-				settings.y_min = l + 0.1;
+			if settings.y_min +1.0 < settings.y_max {  
+				*display_setting = YMin(l+1.0);
+				settings.y_min = l + 1.0;
 			}
 		},
 		&mut DisplaySetting::DataYMin(l) => {
-			if settings.data_y_min + 0.1 < settings.data_y_max {  
-				*display_setting = DataYMin(l+0.1);
-				settings.data_y_min = l + 0.1;
+			if settings.data_y_min + 1.0 < settings.data_y_max {  
+				*display_setting = DataYMin(l+1.0);
+				settings.data_y_min = l + 1.0;
 			}
 		},
 		_ => (),
@@ -309,43 +319,43 @@ pub fn respond_to_decrease(display_setting : &mut DisplaySetting, f : &mut Netwo
 			f.act[l] = next;
 		},
 		&mut DisplaySetting::XMin(l) => {  
-			*display_setting = XMin(l-0.1);
-			settings.x_min = l - 0.1;
+			*display_setting = XMin(l-1.0);
+			settings.x_min = l - 1.0;
 		},
 		&mut DisplaySetting::DataXMin(l) => {  
-			*display_setting = DataXMin(l-0.1);
-			settings.data_x_min = l - 0.1;
+			*display_setting = DataXMin(l-1.0);
+			settings.data_x_min = l - 1.0;
 		},
 		&mut DisplaySetting::XMax(l) => {
-			if settings.x_min +0.1 < settings.x_max {  
-				*display_setting = XMax(l-0.1);
-				settings.x_max = l - 0.1;
+			if settings.x_min +1.0 < settings.x_max {  
+				*display_setting = XMax(l-1.0);
+				settings.x_max = l - 1.0;
 			}
 		},
 		&mut DisplaySetting::YMin(l) => {  
-			*display_setting = YMin(l-0.1);
-			settings.y_min = l - 0.1;
+			*display_setting = YMin(l-1.0);
+			settings.y_min = l - 1.0;
 		},
 		&mut DisplaySetting::DataYMin(l) => {  
-			*display_setting = DataYMin(l-0.1);
-			settings.data_y_min = l - 0.1;
+			*display_setting = DataYMin(l-1.0);
+			settings.data_y_min = l - 1.0;
 		},
 		&mut DisplaySetting::YMax(l) => {
-			if settings.y_min +0.1 < settings.y_max {  
-				*display_setting = YMax(l-0.1);
-				settings.y_max = l - 0.1;
+			if settings.y_min +1.0 < settings.y_max {  
+				*display_setting = YMax(l-1.0);
+				settings.y_max = l - 1.0;
 			}
 		},
 		&mut DisplaySetting::DataYMax(l) => {
-			if settings.data_y_min +0.1 < settings.data_y_max {  
-				*display_setting = DataYMax(l-0.1);
-				settings.data_y_max = l - 0.1;
+			if settings.data_y_min +1.0 < settings.data_y_max {  
+				*display_setting = DataYMax(l-1.0);
+				settings.data_y_max = l - 1.0;
 			}
 		},
 		&mut DisplaySetting::DataXMax(l) => {
-			if settings.data_x_max + 0.1 < settings.data_x_max {  
-				*display_setting = DataXMax(l-0.1);
-				settings.data_x_max = l - 0.1;
+			if settings.data_x_min + 1.0 < settings.data_x_max {  
+				*display_setting = DataXMax(l-1.0);
+				settings.data_x_max = l - 1.0;
 			}
 		},
 		_ => (),

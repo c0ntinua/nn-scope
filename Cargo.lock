@@ -275,6 +275,7 @@ name = "f"
 version = "0.1.0"
 dependencies = [
  "apng",
+ "float_extras",
  "image 0.24.2",
  "imageproc",
  "libm",
@@ -327,6 +328,15 @@ dependencies = [
  "crc32fast",
  "libc",
  "miniz_oxide 0.5.1",
+]
+
+[[package]]
+name = "float_extras"
+version = "0.1.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b22b70f8649ea2315955f1a36d964b0e4da482dfaa5f0d04df0d1fb7c338ab7a"
+dependencies = [
+ "libc",
 ]
 
 [[package]]

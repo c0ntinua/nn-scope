@@ -10,11 +10,11 @@ pub fn random_regular_datapoints( n : usize, x_range : (f64,f64) , y_range : (f6
 	data
 }
 
-pub fn datapoints_from_network( f : &Network , n : usize, x_range : (f64,f64) ) -> Vec<(f64,f64)> {
+pub fn datapoints_from_function( f : fn(f64)->f64 , n : usize, x_range : (f64,f64) ) -> Vec<(f64,f64)> {
 	let mut data = vec![(0.0,0.0);n];	
 	for i in 0..n {
 		let x = rand::random::<f64>()*(x_range.1-x_range.0) + x_range.0;
-		data[i] = (x, f.im_fwd(f.im_fwd(x)));
+		data[i] = (x, f(x));
 	}
 	data
 }
