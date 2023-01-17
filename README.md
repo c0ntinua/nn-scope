@@ -4,6 +4,6 @@ Here's a video demo/intro: https://www.youtube.com/watch?v=gb1aHazMNTI.
 
 This program allows for an interactive, graphical exploration of deep learning in the ultra-simplied context of fitting a real-valued function to a scatterplot. 
 
-You can find versions of nn-scope in JS and C as well, with the latest version written in C. 
+You can find versions of nn-scope in JS and C as well, with the latest version (and perhaps the best) written in C : https://github.com/sc0tzwEi/nn-scope-C 
 
 
